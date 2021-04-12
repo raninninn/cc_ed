@@ -208,47 +208,80 @@ term.clear()
 term.setCursorPos(x, y)
 term.setCursorBlink(true)
 
+local function parseAddr( input )
+	local addressBuff = {}
+	-- Replace all fullstops with current address
+		input = input:gsub("%.", y)
+	-- Replace all dollars with the end of the buffer
+		input = input:gsub("%$", #tLines)
+	-- Replace all "+%D" with "+1"
+		while input:match("[%+%-]%D") do
+			-- Insert space between "+" and "%D"
+			local i,j = input:find("[%+%-][%a%p]")
+			input = input:sub(1,i) .. " " .. input:sub(j)
+			-- replace "%s" with "1"
+			input = input:gsub("%s", "1")
+		end
+		if input:sub( input:len() ) == "+" then
+			input = input.."1"
+		end
+		if input:sub( input:len() ) == "-" then
+			input = input.."1"
+		end
+	-- parse all mathematical equations into one address
+		if input:match("[%-%+].") then
+			local inpGmatch = input:gmatch("[%+%-]%d+")
+			local i = inpGmatch()
+			local operand = y + tonumber(i)
+			i = inpGmatch()
+			while i do
+				operand = operand + tonumber(i)
+				i = inpGmatch()
+			end
+			-- replace first occurance of "+(n)" with operand
+			local i,j = input:find("[%-%+]%d+")
+			input = input:sub(1,i-1) .. operand .. input:sub(j+1)
+			-- get rid of other "+"s
+			input = input:gsub("[%-%+]1", "")
+		end
+		if input:match("%+") then
+			input = input:gsub("%+", y+1)
+		end
+		if input:match("%-") then
+			input = input:gsub("%-", y-1)
+		end
+	-- Find and save addresses
+	local k=1
+	for v in input:gmatch("%d+") do
+		addressBuff[k] = v
+		k = k+1
+	end
+	local addr1 = addressBuff[ table.maxn(addressBuff)-1 ]
+	local addr2 = addressBuff[ table.maxn(addressBuff) ]
+	if addr1 == nil and addr2 == nil then
+		if input:match(",;") ~= nil or input:match(";,") ~= nil then
+			addr1 = y
+			addr2 = y
+		elseif input:match(",%a") ~= nil then
+			addr1 = 1
+			addr2 = #tLines
+		elseif input:match(";%a") ~= nil then
+			addr1 = y
+			addr2 = #tLines
+		else
+			addr1 = y
+			addr2 = y
+		end
+	end
+	if addr1 == nil then addr1 = addr2 end
+	return addr1, addr2, input
+end
+
 local function main()
 	local input = read()
 	if normal_mode == true then
-		local addressBuff = {}
-		-- Input parsing
-		--  Remove all whitespaces
-		input = input:gsub("%s+", "") 
-		--  Replace all fullstops with the real address
-		input = input:gsub("%.", y)
-		--  Replace all dollars with the end of the buffer
-		input = input:gsub("%$", #tLines)
-		--  Replace all occurances of +(n) with the right number
+		local addr1, addr2, input = parseAddr(input)
 
-		--  Find and save addresses
-		local k = 1
-		for v in input:gmatch("%d+") do
-			addressBuff[k] = v
-			k = k + 1
-		end
-		local addr1 = addressBuff[ table.maxn(addressBuff)-1 ]
-		local addr2 = addressBuff[ table.maxn(addressBuff) ]
-		if addr1 == nil and addr2 == nil then
-			if input:match(",;") ~= nil or input:match(";,") ~= nil then
-				addr1 = y
-				addr2 = y
-			elseif input:match(",%a") ~= nil then
-				addr1 = 1
-				addr2 = #tLines
-			elseif input:match(";%a") ~= nil then
-				addr1 = y
-				addr2 = #tLines
-			else
-				addr1 = y
-				addr2 = y
-			end
-		end
-		if addr1 ~= nil and addr2 ~= nil then
-			print("addr1 " .. addr1 .. "   " .. "addr2 " .. addr2)
-		elseif addr1 == nil and addr2 ~= nil then  print("addr1 nil    addr2 " .. addr2)
-		elseif addr1 ~= nil and addr2 == nil then print("addr2 nil    addr1 " .. addr1)
-		else print("both nil") end
 		-- Throw error if addresses are out of bounds
 		if addr1 == 0 or tonumber(addr2) > #tLines then
 			print("?")
@@ -259,6 +292,7 @@ local function main()
 		input = input:gsub(",", "")
 		input = input:gsub(";", "")
 		
+	print(input)
 		-- Normal mode commands
 		if input == "n" then
 			for i=addr1, addr2 do
@@ -270,7 +304,7 @@ local function main()
 			end
 		elseif input == "" then
 			y = tonumber(addr2)
-			print(y)
+		--	print(y)
 			print(tLines[y])
 		elseif input == "q" then
 			bRunning = false
