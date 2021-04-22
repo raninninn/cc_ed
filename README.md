@@ -6,3 +6,5 @@ cc_ed is an editor for the Computercraft mod for Minecraft, aiming to replicate 
 - Loading files
 - Most addressing modes
 - n and p
+- Switching lines
+- Appending (`a`) and inserting (`i`) lines
