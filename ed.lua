@@ -201,6 +201,8 @@ local y = 1
 local x = 1
 local bRunning = true
 local normal_mode = true
+local write_line = nil
+local unsaved = false
 
 load(sPath)
 term.setBackgroundColour(bgColour)
@@ -292,7 +294,6 @@ local function main()
 		input = input:gsub(",", "")
 		input = input:gsub(";", "")
 		
-	print(input)
 		-- Normal mode commands
 		if input == "n" then
 			for i=addr1, addr2 do
@@ -308,8 +309,23 @@ local function main()
 			print(tLines[y])
 		elseif input == "q" then
 			bRunning = false
+		elseif input == "i" then
+			normal_mode = false
+			write_line = y
+		elseif input == "a" then
+			normal_mode = false
+			write_line = y+1
 		end
 		y = addr2
+	-- insert mode
+	else
+		if input ~= "." then
+			table.insert(tLines, write_line, input)
+			write_line = write_line+1
+			unsaved = true
+		else
+			normal_mode = true
+		end
 	end
 end
 
