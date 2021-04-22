@@ -74,7 +74,7 @@ local function save(_sPath)
                 file.write(sLine .. "\n")
             end
         else
-            error("Failed to open " .. _sPath)
+            ed_error("Failed to open " .. _sPath)
         end
     end
 
@@ -203,6 +203,7 @@ local bRunning = true
 local normal_mode = true
 local write_line = nil
 local unsaved = false
+local change = false
 
 load(sPath)
 term.setBackgroundColour(bgColour)
@@ -286,7 +287,7 @@ local function main()
 
 		-- Throw error if addresses are out of bounds
 		if addr1 == 0 or tonumber(addr2) > #tLines then
-			print("?")
+			ed_error("Invalid address")
 			return
 		end
 		-- Remove addresses from input
@@ -307,24 +308,40 @@ local function main()
 			y = tonumber(addr2)
 		--	print(y)
 			print(tLines[y])
-		elseif input == "q" then
+		elseif input == "Q" then
 			bRunning = false
+		elseif input == "d" then
+			for i=addr1, addr2 do
+				table.remove(tLines, i)
+			end
 		elseif input == "i" then
 			normal_mode = false
-			write_line = y
+			write_line = addr2
 		elseif input == "a" then
 			normal_mode = false
-			write_line = y+1
+			write_line = addr2+1
+		elseif input == "c" then
+			normal_mode = false
+			write_line = addr2
+			change = true
+		elseif input == "w" then
+			save(sPath)
+			unsaved = false
 		end
 		y = addr2
 	-- insert mode
 	else
-		if input ~= "." then
+		if input ~= "." and change == false then
 			table.insert(tLines, write_line, input)
 			write_line = write_line+1
 			unsaved = true
-		else
+		elseif input ~= "." and change == true then
+			tLines[tonumber(write_line)] = input
+			write_line = write_line+1
+			unsaved = true
+		elseif input == "." then
 			normal_mode = true
+			change = false
 		end
 	end
 end
