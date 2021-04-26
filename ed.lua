@@ -1,3 +1,15 @@
+-- Environment
+local tEnv = {
+	["y"] = 1,
+	["x"] = 1,
+	["bRunning"] = true,
+	["normal_mode"] = true,
+	["write_line"] = 0,
+	["unsaved"] = false,
+	["change"] = false,
+	["syntaxHL"] = false,
+	["last_error"] = 0,
+}
 -- Get file to edit
 local tArgs = { ... }
 if #tArgs == 0 then
@@ -14,14 +26,6 @@ if fs.exists(sPath) and fs.isDir(sPath) then
     return
 end
 
--- Create .lua files by default
-if not fs.exists(sPath) and not string.find(sPath, "%.") then
-    local sExtension = settings.get("edit.default_extension")
-    if sExtension ~= "" and type(sExtension) == "string" then
-        sPath = sPath .. "." .. sExtension
-    end
-end
-
 -- Colours
 local highlightColour, keywordColour, commentColour, textColour, bgColour, stringColour
 if term.isColour() then
@@ -36,7 +40,7 @@ else
     textColour = colours.white
     highlightColour = colours.white
     keywordColour = colours.white
-    commentColour = colours.white
+    commentColour = colours.grey
     stringColour = colours.white
 end
 
@@ -144,77 +148,18 @@ local function writeHighlighted(sLine)
     end
 end
 
-local tCompletions
-local nCompletion
-
-local tCompleteEnv = _ENV
-local function complete(sLine)
-    if settings.get("edit.autocomplete") then
-        local nStartPos = string.find(sLine, "[a-zA-Z0-9_%.:]+$")
-        if nStartPos then
-            sLine = string.sub(sLine, nStartPos)
-        end
-        if #sLine > 0 then
-            return textutils.complete(sLine, tCompleteEnv)
-        end
-    end
-    return nil
+local function split(s, delimiter)
+	local result = {}
+	for match in (s..delimiter):gmatch("(.-)"..delimiter) do
+		table.insert(result, match)
+	end
+	return result
 end
-
-local function recomplete()
-    local sLine = tLines[y]
-    if sStatus == "Insert" and not bReadOnly and x == #sLine + 1 then
-        tCompletions = complete(sLine)
-        if tCompletions and #tCompletions > 0 then
-            nCompletion = 1
-        else
-            nCompletion = nil
-        end
-    else
-        tCompletions = nil
-        nCompletion = nil
-    end
-end
-
-local function writeCompletion(sLine)
-    if nCompletion then
-        local sCompletion = tCompletions[nCompletion]
-        term.setTextColor(colours.white)
-        term.setBackgroundColor(colours.grey)
-        term.write(sCompletion)
-        term.setTextColor(textColour)
-        term.setBackgroundColor(bgColour)
-    end
-end
-
-local function acceptCompletion()
-    if nCompletion then
-        -- Append the completion
-        local sCompletion = tCompletions[nCompletion]
-        tLines[y] = tLines[y] .. sCompletion
-        setCursor(x + #sCompletion , y)
-    end
-end
-
---Main program
-local y = 1
-local x = 1
-local bRunning = true
-local normal_mode = true
-local write_line = nil
-local unsaved = false
-local change = false
-
-load(sPath)
-term.setBackgroundColour(bgColour)
-term.clear()
-term.setCursorPos(x, y)
-term.setCursorBlink(true)
 
 local function parseAddr( input )
 	local addressBuff = {}
 	-- Replace all fullstops with current address
-		input = input:gsub("%.", y)
+		input = input:gsub("%.", tEnv["y"])
 	-- Replace all dollars with the end of the buffer
 		input = input:gsub("%$", #tLines)
 	-- Replace all "+%D" with "+1"
@@ -235,7 +180,7 @@ local function parseAddr( input )
 		if input:match("[%-%+].") then
 			local inpGmatch = input:gmatch("[%+%-]%d+")
 			local i = inpGmatch()
-			local operand = y + tonumber(i)
+			local operand = tEnv["y"] + tonumber(i)
 			i = inpGmatch()
 			while i do
 				operand = operand + tonumber(i)
@@ -248,10 +193,10 @@ local function parseAddr( input )
 			input = input:gsub("[%-%+]1", "")
 		end
 		if input:match("%+") then
-			input = input:gsub("%+", y+1)
+			input = input:gsub("%+", tEnv["y"]+1)
 		end
 		if input:match("%-") then
-			input = input:gsub("%-", y-1)
+			input = input:gsub("%-", tEnv["y"]-1)
 		end
 	-- Find and save addresses
 	local k=1
@@ -263,26 +208,41 @@ local function parseAddr( input )
 	local addr2 = addressBuff[ table.maxn(addressBuff) ]
 	if addr1 == nil and addr2 == nil then
 		if input:match(",;") ~= nil or input:match(";,") ~= nil then
-			addr1 = y
-			addr2 = y
+			addr1 = tEnv["y"]
+			addr2 = tEnv["y"]
 		elseif input:match(",%a") ~= nil then
 			addr1 = 1
 			addr2 = #tLines
 		elseif input:match(";%a") ~= nil then
-			addr1 = y
+			addr1 = tEnv["y"]
 			addr2 = #tLines
 		else
-			addr1 = y
-			addr2 = y
+			addr1 = tEnv["y"]
+			addr2 = tEnv["y"]
 		end
 	end
 	if addr1 == nil then addr1 = addr2 end
 	return addr1, addr2, input
 end
 
+local function ed_error(error)
+	term.setTextColour(stringColour)
+	print(error)
+	term.setTextColour(textColour)
+	tEnv.last_error = error
+end
+
+--Main program
+
+load(sPath)
+term.setBackgroundColour(bgColour)
+term.clear()
+term.setCursorPos(tEnv.x, tEnv.y)
+term.setCursorBlink(true)
+
 local function main()
 	local input = read()
-	if normal_mode == true then
+	if tEnv.normal_mode == true then
 		local addr1, addr2, input = parseAddr(input)
 
 		-- Throw error if addresses are out of bounds
@@ -298,52 +258,87 @@ local function main()
 		-- Normal mode commands
 		if input == "n" then
 			for i=addr1, addr2 do
-				print(i .. "   " .. tLines[i])
+				if tEnv.syntaxHL == true then
+					if string.len(tLines[i]) > 0 then
+						write(i .. "   ") writeHighlighted(tLines[i]) write("\n")
+					else print(i)
+					end
+				else print(i .. "   ".. tLines[i])
+				end
 			end
 		elseif input == "p" then
 			for i=addr1, addr2 do
-				print("    " .. tLines[i])
+				if tEnv.syntaxHL == true then
+					if string.len(tLines[i]) > 0 then
+						write(i .. "    ") writeHighlighted(tLines[i]) write("\n")
+					else print(i) end
+				else print("    " .. tLines[i])
+				end
 			end
 		elseif input == "" then
-			y = tonumber(addr2)
-		--	print(y)
-			print(tLines[y])
+			tEnv["y"] = tonumber(addr2)
+		--	print(tEnv["y"])
+			print(tLines[tEnv["y"]])
 		elseif input == "Q" then
-			bRunning = false
+			tEnv.bRunning = false
 		elseif input == "d" then
 			for i=addr1, addr2 do
 				table.remove(tLines, i)
 			end
 		elseif input == "i" then
-			normal_mode = false
-			write_line = addr2
+			tEnv.normal_mode = false
+			tEnv.write_line = addr2
 		elseif input == "a" then
-			normal_mode = false
-			write_line = addr2+1
+			tEnv.normal_mode = false
+			tEnv.write_line = addr2+1
 		elseif input == "c" then
-			normal_mode = false
-			write_line = addr2
-			change = true
+			tEnv.normal_mode = false
+			tEnv.write_line = addr2
+			tEnv.change = true
 		elseif input == "w" then
 			save(sPath)
-			unsaved = false
+			tEnv.unsaved = false
+		elseif input:match("set") then
+			-- find argument
+			local arg = input:gsub("set", "")
+			arg = arg:gsub("%s+", "")
+			-- split at "="
+			local parts = split(arg, "=")
+			local partsLen = #parts
+			if partsLen > 1 then
+				local key = parts[partsLen-1]
+				local value = parts[partsLen]
+				if tEnv[key] ~= nil then
+					if value == "true" then
+						value = true
+					elseif value == "false" then
+						value = false
+					end
+					tEnv[key] = value
+				else
+					print(tEnv.syntaxHL)
+					ed_error(key..": No such value")
+				end
+			else
+				ed_error("Not enough arguments")
+			end
 		end
-		y = addr2
+		tEnv["y"] = addr2
 	-- insert mode
 	else
-		if input ~= "." and change == false then
-			table.insert(tLines, write_line, input)
-			write_line = write_line+1
-			unsaved = true
-		elseif input ~= "." and change == true then
-			tLines[tonumber(write_line)] = input
-			write_line = write_line+1
-			unsaved = true
+		if input ~= "." and tEnv.change == false then
+			table.insert(tLines, tEnv.write_line, input)
+			tEnv.write_line = tEnv.write_line+1
+			tEnv.unsaved = true
+		elseif input ~= "." and tEnv.change == true then
+			tLines[tonumber(tEnv.write_line)] = input
+			tEnv.write_line = tEnv.write_line+1
+			tEnv.unsaved = true
 		elseif input == "." then
-			normal_mode = true
-			change = false
+			tEnv.normal_mode = true
+			tEnv.change = false
 		end
 	end
 end
 
-repeat main() until bRunning == false
+repeat main() until tEnv.bRunning == false
