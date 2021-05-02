@@ -296,7 +296,14 @@ local function main()
 			tEnv.normal_mode = false
 			tEnv.write_line = addr2
 			tEnv.change = true
-		elseif input == "w" then
+		elseif input:match("w.-") then
+			local input = string.sub( input:gsub("%s", ""), 2)
+			local sPath = sPath
+			if string.len(input) > 0 then
+				sPath = shell.resolve(input)
+				print("hi")
+			end
+			print(sPath)
 			save(sPath)
 			tEnv.unsaved = false
 		elseif input:match("set") then
