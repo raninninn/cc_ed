@@ -9,6 +9,7 @@ local tEnv = {
 	["change"] = false,
 	["syntaxHL"] = false,
 	["last_error"] = 0,
+	["bPrint_error"] = false,
 }
 -- Get file to edit
 local tArgs = { ... }
@@ -226,9 +227,10 @@ local function parseAddr( input )
 end
 
 local function ed_error(error)
-	term.setTextColour(stringColour)
-	print(error)
-	term.setTextColour(textColour)
+	print("?")
+	if tEnv.bPrint_error == true then
+		print(error)
+	end
 	tEnv.last_error = error
 end
 
@@ -277,7 +279,6 @@ local function main()
 			end
 		elseif input == "" then
 			tEnv["y"] = tonumber(addr2)
-		--	print(tEnv["y"])
 			print(tLines[tEnv["y"]])
 		elseif input == "Q" then
 			tEnv.bRunning = false
@@ -322,7 +323,13 @@ local function main()
 			else
 				ed_error("Not enough arguments")
 			end
+		elseif input:match("H") then
+			if tEnv.bPrint_error == false then
+				tEnv.bPrint_error = true
+				print(tEnv.last_error)
+			else tEnv.bPrint_error = false end
 		end
+
 		tEnv["y"] = addr2
 	-- insert mode
 	else
