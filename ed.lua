@@ -13,18 +13,15 @@ local tEnv = {
 }
 -- Get file to edit
 local tArgs = { ... }
-if #tArgs == 0 then
-    local programName = arg[0] or fs.getName(shell.getRunningProgram())
-    print("Usage: " .. programName .. " <path>")
-    return
-end
 
--- Error checking
-local sPath = shell.resolve(tArgs[1])
-local bReadOnly = fs.isReadOnly(sPath)
-if fs.exists(sPath) and fs.isDir(sPath) then
-    print("Cannot edit a directory.")
-    return
+local sPath
+if tArgs[1] then
+	sPath = shell.resolve(tArgs[1])
+	-- Error checking
+	local bReadOnly = fs.isReadOnly(sPath)
+	if fs.exists(sPath) and fs.isDir(sPath) then
+		tEnv.last_error = sPath .. ": Is a directory"
+	end
 end
 
 -- Colours
@@ -45,9 +42,17 @@ else
     stringColour = colours.white
 end
 
+local function ed_error(error)
+	print("?")
+	if tEnv.bPrint_error == true then
+		print(error)
+	end
+	tEnv.last_error = error
+end
+
 local function load(_sPath)
     tLines = {}
-    if fs.exists(_sPath) then
+    if _sPath and fs.exists(_sPath) and not fs.isDir(_sPath) then
         local file = io.open(_sPath, "r")
         local sLine = file:read()
         while sLine do
@@ -55,12 +60,13 @@ local function load(_sPath)
             sLine = file:read()
         end
         file:close()
-    end
+	else
+		ed_error("Cannot read input file")
+	end
 
     if #tLines == 0 then
         table.insert(tLines, "")
     end
-	print(tLines)
 end
 
 local function save(_sPath)
@@ -79,7 +85,7 @@ local function save(_sPath)
                 file.write(sLine .. "\n")
             end
         else
-            ed_error("Failed to open " .. _sPath)
+			ed_error("Cannot open output file")
         end
     end
 
@@ -226,21 +232,15 @@ local function parseAddr( input )
 	return addr1, addr2, input
 end
 
-local function ed_error(error)
-	print("?")
-	if tEnv.bPrint_error == true then
-		print(error)
-	end
-	tEnv.last_error = error
-end
 
 --Main program
-
-load(sPath)
 term.setBackgroundColour(bgColour)
 term.clear()
 term.setCursorPos(tEnv.x, tEnv.y)
 term.setCursorBlink(true)
+
+print(tEnv.last_error)
+load(sPath)
 
 local function main()
 	local input = read()
@@ -303,9 +303,10 @@ local function main()
 				sPath = shell.resolve(input)
 				print("hi")
 			end
-			print(sPath)
-			save(sPath)
-			tEnv.unsaved = false
+			if sPath then
+				save(sPath)
+				tEnv.unsaved = false
+			else ed_error("No current filename") end
 		elseif input:match("set") then
 			-- find argument
 			local arg = input:gsub("set", "")
