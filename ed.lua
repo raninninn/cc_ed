@@ -3,7 +3,7 @@ local tEnv = {
 	["y"] = 1,
 	["x"] = 1,
 	["bRunning"] = true,
-	["normal_mode"] = true,
+	["mode"] = "normal",
 	["write_line"] = 0,
 	["unsaved"] = false,
 	["change"] = false,
@@ -11,6 +11,8 @@ local tEnv = {
 	["last_error"] = 0,
 	["bPrint_error"] = false,
 }
+-- Bookmarks
+local tBookms = {}
 -- Get file to edit
 local tArgs = { ... }
 
@@ -61,7 +63,7 @@ local function load(_sPath)
         end
         file:close()
 	else
-		ed_error("Cannot read input file")
+		tEnv.last_error = "Cannot read input file"
 	end
 
     if #tLines == 0 then
@@ -165,10 +167,26 @@ end
 
 local function parseAddr( input )
 	local addressBuff = {}
+	-- Error if `+` or `-` is before 'x
+		if input:match("%+'%l") or input:match("%-'%l") then
+			tEnv.mode = "none"
+			return 0, tEnv.y
+		end
 	-- Replace all fullstops with current address
 		input = input:gsub("%.", tEnv["y"])
 	-- Replace all dollars with the end of the buffer
 		input = input:gsub("%$", #tLines)
+	-- Replace all 'x with the respective bookmark
+		while input:match("'%l") do 
+			local sMark = input:match("'%l")
+			local mark = sMark:sub(2)
+			if tBookms[mark] then
+				input = input:gsub(sMark, tBookms[mark])
+			else
+				tEnv.mode = "none"
+				return 0, tEnv.y
+			end
+		end
 	-- Replace all "+%D" with "+1"
 		while input:match("[%+%-]%D") do
 			-- Insert space between "+" and "%D"
@@ -186,6 +204,9 @@ local function parseAddr( input )
 	-- parse all mathematical equations into one address
 		if input:match("[%-%+].") then
 			local inpGmatch = input:gmatch("[%+%-]%d+")
+			local sum1 = input:match("%d+[%+%-]")
+			sum1 = sum1:sub(1, string.len(sum1)-1)
+			tEnv.y = sum1
 			local i = inpGmatch()
 			local operand = tEnv["y"] + tonumber(i)
 			i = inpGmatch()
@@ -193,6 +214,8 @@ local function parseAddr( input )
 				operand = operand + tonumber(i)
 				i = inpGmatch()
 			end
+			-- replace sum1 with nothing
+			input = input:sub( string.len(sum1)+1 )
 			-- replace first occurance of "+(n)" with operand
 			local i,j = input:find("[%-%+]%d+")
 			input = input:sub(1,i-1) .. operand .. input:sub(j+1)
@@ -239,14 +262,18 @@ term.clear()
 term.setCursorPos(tEnv.x, tEnv.y)
 term.setCursorBlink(true)
 
-print(tEnv.last_error)
+if tEnv.last_error ~= 0 then print(tEnv.last_error) end
 load(sPath)
 
 local function main()
-	local input = read()
-	if tEnv.normal_mode == true then
-		local addr1, addr2, input = parseAddr(input)
+	-- reset mode after error run
+	if tEnv.mode == "none" then
+		tEnv.mode = "normal"
+	end
 
+	local input = read()
+	if tEnv.mode == "normal" then
+		local addr1, addr2, input = parseAddr(input)
 		-- Throw error if addresses are out of bounds
 		if addr1 == 0 or tonumber(addr2) > #tLines then
 			ed_error("Invalid address")
@@ -272,9 +299,9 @@ local function main()
 			for i=addr1, addr2 do
 				if tEnv.syntaxHL == true then
 					if string.len(tLines[i]) > 0 then
-						write(i .. "    ") writeHighlighted(tLines[i]) write("\n")
+						writeHighlighted(tLines[i]) write("\n")
 					else print(i) end
-				else print("    " .. tLines[i])
+				else print(tLines[i])
 				end
 			end
 		elseif input == "" then
@@ -287,13 +314,13 @@ local function main()
 				table.remove(tLines, i)
 			end
 		elseif input == "i" then
-			tEnv.normal_mode = false
+			tEnv.mode = "insert"
 			tEnv.write_line = addr2
 		elseif input == "a" then
-			tEnv.normal_mode = false
+			tEnv.mode = "insert"
 			tEnv.write_line = addr2+1
 		elseif input == "c" then
-			tEnv.normal_mode = false
+			tEnv.mode = "insert"
 			tEnv.write_line = addr2
 			tEnv.change = true
 		elseif input:match("w.-") then
@@ -301,7 +328,6 @@ local function main()
 			local sPath = sPath
 			if string.len(input) > 0 then
 				sPath = shell.resolve(input)
-				print("hi")
 			end
 			if sPath then
 				save(sPath)
@@ -336,11 +362,18 @@ local function main()
 				tEnv.bPrint_error = true
 				print(tEnv.last_error)
 			else tEnv.bPrint_error = false end
+		elseif input:match("k%l?") then
+			local suffix = input:sub(2)
+			if string.len(input) ~= 2 then
+				ed_error("Invalid command suffix")
+			else
+				tBookms[suffix] = addr2
+			end
 		end
 
 		tEnv["y"] = addr2
 	-- insert mode
-	else
+	elseif tEnv.mode == "insert" then
 		if input ~= "." and tEnv.change == false then
 			table.insert(tLines, tEnv.write_line, input)
 			tEnv.write_line = tEnv.write_line+1
@@ -350,7 +383,7 @@ local function main()
 			tEnv.write_line = tEnv.write_line+1
 			tEnv.unsaved = true
 		elseif input == "." then
-			tEnv.normal_mode = true
+			tEnv.mode = "normal"
 			tEnv.change = false
 		end
 	end

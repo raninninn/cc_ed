@@ -4,7 +4,7 @@ cc_ed is an editor for the Minecraft mod [Computercraft](www.computercraft.info)
 
 ## What works so far:
 - Loading and saving files
-- Most line addressing modes
+- All line addressing modes that don't require regex
 - n and p
 - Appending `a`, inserting `i`, changing `c` and deleting `d` lines 
 - Toggling error messages with `H`
