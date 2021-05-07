@@ -369,6 +369,8 @@ local function main()
 			else
 				tBookms[suffix] = addr2
 			end
+		else
+			ed_error("Unknown command")
 		end
 
 		tEnv["y"] = addr2
