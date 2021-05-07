@@ -1,0 +1,9 @@
+ed
+cc_ed is a line-oriented text editor. Its aim is to provide an experience on par with GNU ed.
+To learn Ed, visit https://www.gnu.org/software/ed/manual/ed_manual.html.
+
+To edit a file, enter `ed FILENAME`.
+
+For feature requests and bug reports, visit https://github.com/raninninn/cc_ed.
+
+Still don't know why you should give Ed a try? Visit https://www.gnu.org/fun/jokes/ed-msg.html to find out why Ed is the standard editor.
