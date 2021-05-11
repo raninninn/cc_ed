@@ -1,3 +1,9 @@
+--
+-- cc_ed
+-- made by Raninninn
+--
+
+
 -- Environment
 local tEnv = {
 	["y"] = 1,
@@ -165,95 +171,127 @@ local function split(s, delimiter)
 	return result
 end
 
-local function parseAddr( input )
+local function splitAddr( input )
+	local splitter = 0
+	local input = input.."a"
+	-- find first occurance of a letter that isn't part of regex, if it is lower case and has `'` before it, go to next occurance
+	while input:find("%a") do
+		local mbSplitter = input:find("%a")
+		if input:sub(mbSplitter-1, mbSplitter-1) ~= "'" or string.match(input:sub(mbSplitter, mbSplitter), "%u") then 
+			splitter = splitter + mbSplitter
+			break
+		else
+			input = input:sub(mbSplitter+1)
+			splitter = splitter + mbSplitter
+		end
+	end
+	if splitter == 0 then
+		splitter = 1
+	end
+	return splitter
+end
+
+local function findAddr( input )
 	local addressBuff = {}
-	-- Error if `+` or `-` is before 'x
-		if input:match("%+'%l") or input:match("%-'%l") then
+	local splitter = splitAddr( input )
+	local addr = input:sub(1, splitter-1)
+	if input:len() == 1 and input:match("[%d,.;]") then
+		addr = input
+	end
+	-- Error if more than 2 addresses are given
+	if addr:match("[,;].+[,;]") then
+		return 0, tEnv.y
+	end
+	-- Error if `+` or `-` is before `'x`
+	if addr:match("[%+%-]'%l") then
+		tEnv.mode = "none"
+		return 0, tEnv.y
+	end
+	-- strip all spaces from `addr`
+	addr = addr:gsub("%s", "")
+	-- Replace all fullstops with current address
+	addr = addr:gsub("%.", tEnv.y)
+	-- replace all dollars with end of buffer
+	addr = addr:gsub("%$", #tLines)
+	-- Replace all bookmarks
+	while addr:match("'%l") do
+		local sMark = addr:match("'%l")
+		local mark = sMark:sub(2)
+		if tBookms[mark] then
+			addr = addr:gsub(sMark, tBookms[mark])
+		else
 			tEnv.mode = "none"
 			return 0, tEnv.y
 		end
-	-- Replace all fullstops with current address
-		input = input:gsub("%.", tEnv["y"])
-	-- Replace all dollars with the end of the buffer
-		input = input:gsub("%$", #tLines)
-	-- Replace all 'x with the respective bookmark
-		while input:match("'%l") do 
-			local sMark = input:match("'%l")
-			local mark = sMark:sub(2)
-			if tBookms[mark] then
-				input = input:gsub(sMark, tBookms[mark])
-			else
-				tEnv.mode = "none"
-				return 0, tEnv.y
-			end
-		end
+	end
 	-- Replace all "+%D" with "+1"
-		while input:match("[%+%-]%D") do
-			-- Insert space between "+" and "%D"
-			local i,j = input:find("[%+%-][%a%p]")
-			input = input:sub(1,i) .. " " .. input:sub(j)
-			-- replace "%s" with "1"
-			input = input:gsub("%s", "1")
-		end
-		if input:sub( input:len() ) == "+" then
-			input = input.."1"
-		end
-		if input:sub( input:len() ) == "-" then
-			input = input.."1"
-		end
+	while addr:match("[%+%-]%D") do
+		-- Insert space between "+" and "%D"
+		local i,j = addr:find("[%+%-][%a%p]")
+		addr = addr:sub(1,i) .. " " .. addr:sub(j)
+		-- replace "%s" with "1"
+		addr = addr:gsub("%s", "1")
+	end
+	if addr:sub( addr:len() ) == "+" then
+		addr = addr.."1"
+	end
+	if addr:sub( addr:len() ) == "-" then
+		addr = addr.."1"
+	end
 	-- parse all mathematical equations into one address
-		if input:match("[%-%+].") then
-			local inpGmatch = input:gmatch("[%+%-]%d+")
-			local sum1 = input:match("%d+[%+%-]")
-			sum1 = sum1:sub(1, string.len(sum1)-1)
-			tEnv.y = sum1
-			local i = inpGmatch()
-			local operand = tEnv["y"] + tonumber(i)
-			i = inpGmatch()
-			while i do
-				operand = operand + tonumber(i)
-				i = inpGmatch()
-			end
-			-- replace sum1 with nothing
-			input = input:sub( string.len(sum1)+1 )
-			-- replace first occurance of "+(n)" with operand
-			local i,j = input:find("[%-%+]%d+")
-			input = input:sub(1,i-1) .. operand .. input:sub(j+1)
-			-- get rid of other "+"s
-			input = input:gsub("[%-%+]1", "")
+	if addr:match("[%-%+].") then
+		local addrGmatch = addr:gmatch("[%+%-]%d+")
+		local sum1 = addr:match("%d[%+%-]")
+		sum1 = sum1:sub(1, string.len(sum1)-1)
+		tEnv.y = sum1
+		local i = addrGmatch()
+		local operand = tEnv.y + tonumber(i)
+		i = addrGmatch()
+		while i do 
+			operand = operand + tonumber(i)
+			i = addrGmatch()
 		end
-		if input:match("%+") then
-			input = input:gsub("%+", tEnv["y"]+1)
-		end
-		if input:match("%-") then
-			input = input:gsub("%-", tEnv["y"]-1)
-		end
-	-- Find and save addresses
+		-- replace sum1 with nothing
+		addr = addr:sub( string.len(sum1)+1 )
+		-- replace first occurance of "+(n)" with operand
+		local i,j = addr:find("[%-%+]%d+")
+		addr = addr:sub(1,i-1) .. operand .. addr:sub(j+1)
+		-- get rid of other "+"s
+		addr = addr:gsub("[%+%-]1", "")
+	end
+	if addr:match("%+") then
+		addr = addr:gsub("%+", tEnv["y"]+1)
+	end
+	if addr:match("%-") then
+		addr = addr:gsub("%-", tEnv["y"]-1)
+	end
+	-- find and save addresses
 	local k=1
-	for v in input:gmatch("%d+") do
+	for v in addr:gmatch("%d+") do
 		addressBuff[k] = v
 		k = k+1
 	end
 	local addr1 = addressBuff[ table.maxn(addressBuff)-1 ]
 	local addr2 = addressBuff[ table.maxn(addressBuff) ]
 	if addr1 == nil and addr2 == nil then
-		if input:match(",;") ~= nil or input:match(";,") ~= nil then
-			addr1 = tEnv["y"]
-			addr2 = tEnv["y"]
-		elseif input:match(",%a") ~= nil then
+		if addr:match(",;") or input:match(";,") ~= nil then
+			addr1 = tEnv.y
+			addr2 = tEnv.y
+		elseif addr:match(",") ~= nil then
 			addr1 = 1
 			addr2 = #tLines
-		elseif input:match(";%a") ~= nil then
-			addr1 = tEnv["y"]
+		elseif addr:match(";") ~= nil then
+			addr1 = tEnv.y
 			addr2 = #tLines
-		else
-			addr1 = tEnv["y"]
-			addr2 = tEnv["y"]
+		elseif input ~= "" then
+			addr1 = tEnv.y
+			addr2 = tEnv.y
 		end
 	end
 	if addr1 == nil then addr1 = addr2 end
-	return addr1, addr2, input
+	return addr1, addr2, splitter
 end
+
 
 
 --Main program
@@ -273,17 +311,19 @@ local function main()
 
 	local input = read()
 	if tEnv.mode == "normal" then
-		local addr1, addr2, input = parseAddr(input)
+		local addr1, addr2, splitter = findAddr(input)
 		-- Throw error if addresses are out of bounds
 		if addr1 == 0 or tonumber(addr2) > #tLines then
 			ed_error("Invalid address")
 			return
 		end
+		-- Throw error if no match found for regex
+		if addr1 == -1 then
+			ed_error("No match")
+			return
+		end
 		-- Remove addresses from input
-		input = input:gsub("%d", "")
-		input = input:gsub(",", "")
-		input = input:gsub(";", "")
-		
+		input = input:sub(splitter)	
 		-- Normal mode commands
 		if input == "n" then
 			for i=addr1, addr2 do
@@ -304,7 +344,7 @@ local function main()
 				else print(tLines[i])
 				end
 			end
-		elseif input == "" then
+		elseif input == "" and addr2 then
 			tEnv["y"] = tonumber(addr2)
 			print(tLines[tEnv["y"]])
 		elseif input == "Q" then
