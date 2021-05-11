@@ -363,6 +363,38 @@ term.setBackgroundColour(bgColour)
 term.clear()
 term.setCursorPos(tEnv.x, tEnv.y)
 term.setCursorBlink(true)
+local normCmds = {
+	["n"] = function(addr1, addr2)
+				for i=addr1, addr2 do
+					if tEnv.syntaxHL == true then
+						if string.len(tLines[i]) > 0 then
+							write(i .. "   ") writeHighlighted(tLines[i]) write("\n")
+						else print(i)
+						end
+					else print(i .. "   " .. tLines[i])
+					end
+				end
+			end,
+	["p"] = function(addr1, addr2)
+				for i=addr1, addr2 do
+					if tEnv.syntaxHL == true then
+						if string.len(tLines[i]) > 0 then
+							writeHighlighted(tLines[i]) write("\n")
+						else print(i) end
+					else print(tLines[i])
+					end
+				end
+			end,
+	["Q"] = function() tEnv.bRunning = false end,
+	["d"] = function(addr1, addr2) for i=addr1, addr2 do table.remove(tLines, i) end end,
+	["i"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2 end,
+	["a"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2+1 end,
+	["c"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2 tEnv.change = true end,
+	["H"] = function() if tEnv.bPrint_error == false then
+							tEnv.bPrint_error = true print(tEnv.last_error)
+						else tEnv.bPrint_error = false end end,
+	}
+	
 
 if tEnv.last_error ~= 0 then print(tEnv.last_error) end
 load(sPath)
@@ -391,26 +423,7 @@ local function main()
 		-- Remove addresses from input
 		input = input:sub(splitter)	
 		-- Normal mode commands
-		if input == "n" then
-			for i=addr1, addr2 do
-				if tEnv.syntaxHL == true then
-					if string.len(tLines[i]) > 0 then
-						write(i .. "   ") writeHighlighted(tLines[i]) write("\n")
-					else print(i)
-					end
-				else print(i .. "   ".. tLines[i])
-				end
-			end
-		elseif input == "p" then
-			for i=addr1, addr2 do
-				if tEnv.syntaxHL == true then
-					if string.len(tLines[i]) > 0 then
-						writeHighlighted(tLines[i]) write("\n")
-					else print(i) end
-				else print(tLines[i])
-				end
-			end
-		elseif input == "" and addr2 then
+		if input == "" and addr2 then
 			tEnv["y"] = tonumber(addr2)
 			print(tLines[tEnv["y"]])
 		elseif input == "" and addr1 == nil then
@@ -420,22 +433,6 @@ local function main()
 			else
 				ed_error("Invalid address")
 			end
-		elseif input == "Q" then
-			tEnv.bRunning = false
-		elseif input == "d" then
-			for i=addr1, addr2 do
-				table.remove(tLines, i)
-			end
-		elseif input == "i" then
-			tEnv.mode = "insert"
-			tEnv.write_line = addr2
-		elseif input == "a" then
-			tEnv.mode = "insert"
-			tEnv.write_line = addr2+1
-		elseif input == "c" then
-			tEnv.mode = "insert"
-			tEnv.write_line = addr2
-			tEnv.change = true
 		elseif input:match("w.-") then
 			local input = string.sub( input:gsub("%s", ""), 2)
 			local sPath = sPath
@@ -470,11 +467,6 @@ local function main()
 			else
 				ed_error("Not enough arguments")
 			end
-		elseif input:match("H") then
-			if tEnv.bPrint_error == false then
-				tEnv.bPrint_error = true
-				print(tEnv.last_error)
-			else tEnv.bPrint_error = false end
 		elseif input:match("k%l?") then
 			local suffix = input:sub(2)
 			if string.len(input) ~= 2 then
@@ -483,7 +475,11 @@ local function main()
 				tBookms[suffix] = addr2
 			end
 		else
-			ed_error("Unknown command")
+			if normCmds[input] == nil then
+				ed_error("Unknown command")
+			else
+				normCmds[input](addr1, addr2)
+			end
 		end
 		if addr2 ~= nil then
 			tEnv["y"] = addr2
