@@ -1,10 +1,10 @@
 # cc_ed
 ## Description
 cc_ed is an editor for the Minecraft mod [Computercraft](www.computercraft.info), aiming to replicate the workings of the standard editor, ed.
+_cc_ed uses [Lua patterns](https://www.lua.org/pil/20.2.html) for regex._
 
 ## What works so far:
-- Loading and saving files
-- All line addressing modes that don't require regex
+- All line addressing modes
 - n and p
 - Appending `a`, inserting `i`, changing `c` and deleting `d` lines 
 - Toggling error messages with `H`
