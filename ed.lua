@@ -177,12 +177,27 @@ local function splitAddr( input )
 	-- find first occurance of a letter that isn't part of regex, if it is lower case and has `'` before it, go to next occurance
 	while input:find("%a") do
 		local mbSplitter = input:find("%a")
-		if input:sub(mbSplitter-1, mbSplitter-1) ~= "'" or string.match(input:sub(mbSplitter, mbSplitter), "%u") then 
+		local i,j = input:find("%b//")
+		local ii, jj = input:find("%b??")
+		if i == nil or i ~= nil and ii ~= nil and i < ii then
+			i = ii
+			j = jj
+		end
+		if i == nil or j == nil or mbSplitter < i or mbSplitter > j then 
+			if input:sub(mbSplitter-1, mbSplitter-1) ~= "'" or string.match(input:sub(mbSplitter, mbSplitter), "%u") then 
+				splitter = splitter + mbSplitter
+				break
+			else input = input:sub(mbSplitter+1)
 			splitter = splitter + mbSplitter
-			break
+			end
 		else
-			input = input:sub(mbSplitter+1)
-			splitter = splitter + mbSplitter
+			if mbSplitter < j then
+				input = input:sub(j+1)
+				splitter = splitter + j
+			else
+				input = input:sub(mbSplitter)
+				splitter = splitter + mbSplitter
+			end
 		end
 	end
 	if splitter == 0 then
@@ -202,10 +217,59 @@ local function findAddr( input )
 	if addr:match("[,;].+[,;]") then
 		return 0, tEnv.y
 	end
-	-- Error if `+` or `-` is before `'x`
-	if addr:match("[%+%-]'%l") then
+	-- Error if `+` or `-` is before `'x` or `/`
+	if addr:match("[%+%-]'%l") or input:match("[%+%-][%?/]") then
 		tEnv.mode = "none"
 		return 0, tEnv.y
+	end
+	-- Replace all Regex with their respective lines
+	if addr:match("/.+/") then
+		local regStart, regEnd = addr:find("/.+/")
+		local regex = addr:sub(regStart+1, regEnd-1)
+		local foundMatch = false
+		for i=tEnv.y, #tLines do
+			if tLines[i]:match(regex) then
+				addr = addr:sub(0, regStart-1) .. i .. addr:sub(regEnd+1)
+				foundMatch = true
+				break
+			end
+		end
+		if foundMatch == false then
+			for i=1, tEnv.y-1 do
+				if tLines[i]:match(regex) then
+					addr = addr:sub(0, regStart-1) .. i .. addr:sub(regEnd+1)
+					foundMatch = true
+					break
+				end
+			end
+		end
+		if foundMatch == false then
+			return -1, tEnv.y
+		end
+	end
+	if addr:match("%?.+%?") then
+		local regStart, regEnd = addr:find("%?.+%?")
+		local regex = addr:sub(regStart+1, regEnd-1)
+		local foundMatch = false
+		for i=tEnv.y, 1, -1 do
+			if tLines[i]:match(regex) then
+				addr = addr:sub(0, regStart-1) .. i .. addr:sub(regEnd+1)
+				foundMatch = true
+				break
+			end
+		end
+		if foundMatch == false then
+			for i=#tLines, tEnv.y+1, -1 do
+				if tLines[i]:match(regex) then
+					addr = addr:sub(0, regStart-1) .. i .. addr:sub(regEnd+1)
+					foundMatch = true
+					break
+				end
+			end
+		end
+		if foundMatch == false then
+			return -1, tEnv.y
+		end
 	end
 	-- strip all spaces from `addr`
 	addr = addr:gsub("%s", "")
@@ -313,9 +377,11 @@ local function main()
 	if tEnv.mode == "normal" then
 		local addr1, addr2, splitter = findAddr(input)
 		-- Throw error if addresses are out of bounds
-		if addr1 == 0 or tonumber(addr2) > #tLines then
-			ed_error("Invalid address")
-			return
+		if addr1 ~= nil then
+			if addr1 == 0 or tonumber(addr2) > #tLines then
+				ed_error("Invalid address")
+				return
+			end
 		end
 		-- Throw error if no match found for regex
 		if addr1 == -1 then
@@ -347,6 +413,13 @@ local function main()
 		elseif input == "" and addr2 then
 			tEnv["y"] = tonumber(addr2)
 			print(tLines[tEnv["y"]])
+		elseif input == "" and addr1 == nil then
+			if tEnv.y < #tLines then
+				tEnv.y = tEnv.y + 1
+				print(tLines[tEnv.y])
+			else
+				ed_error("Invalid address")
+			end
 		elseif input == "Q" then
 			tEnv.bRunning = false
 		elseif input == "d" then
@@ -412,8 +485,9 @@ local function main()
 		else
 			ed_error("Unknown command")
 		end
-
-		tEnv["y"] = addr2
+		if addr2 ~= nil then
+			tEnv["y"] = addr2
+		end
 	-- insert mode
 	elseif tEnv.mode == "insert" then
 		if input ~= "." and tEnv.change == false then
