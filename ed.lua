@@ -16,6 +16,7 @@ local tEnv = {
 	["syntaxHL"] = false,
 	["last_error"] = 0,
 	["bPrint_error"] = false,
+    ["last_cmd"] = false,
 }
 -- Bookmarks
 local tBookms = {}
@@ -386,7 +387,16 @@ local normCmds = {
 				end
 			end,
 	["Q"] = function() tEnv.bRunning = false end,
-	["d"] = function(addr1, addr2) for i=addr1, addr2 do table.remove(tLines, i) end end,
+    ["q"] = function()
+                if tEnv.unsaved == true then
+                    if tEnv.last_cmd == "q" then
+                        tEnv.bRunning = false
+                    else
+                        ed_error("Warning: buffer modified")
+                    end
+                else tEnv.bRunning = false end
+            end,
+	["d"] = function(addr1, addr2) for i=addr1, addr2 do table.remove(tLines, i) tEnv.unsaved = true end end,
 	["i"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2 end,
 	["a"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2+1 end,
 	["c"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2 tEnv.change = true end,
@@ -484,6 +494,9 @@ local function main()
 		if addr2 ~= nil then
 			tEnv["y"] = addr2
 		end
+        -- update last_cmd
+        tEnv["last_cmd"] = input
+
 	-- insert mode
 	elseif tEnv.mode == "insert" then
 		if input ~= "." and tEnv.change == false then
