@@ -220,8 +220,41 @@ local function findAddr( input )
 	end
 	-- Error if `+` or `-` is before `'x` or `/`
 	if addr:match("[%+%-]'%l") or input:match("[%+%-][%?/]") then
-		tEnv.mode = "none"
-		return 0, tEnv.y
+        -- check we're not inside of regex
+        addrCpy = addr
+        while addrCpy:match("[%+%-]'%l") or addrCpy:match("[%+%-][%?/]") do
+            local regStart, regEnd = 0, 0
+            local regStart, regEnd = addrCpy:find("[/%?][^/%?]+[/%?]")
+            local offender1Start, offender1End = addrCpy:find("[%+%-]'%l")
+            local offender2Start, offender2End = addrCpy:find("[%+%-][/%?]")
+            local offenderStart, offenderEnd = 0, 0
+
+            if offender1Start and offender2Start and offender1Start < offender2Start then
+                offenderStart = offender1Start
+                offenderEnd = offender1End
+            elseif offender1Start and offender2Start and offender1Start > offender2Start then
+                offenderStart = offender2Start
+                offenderEnd = offender2End
+            else
+                if offender1End and offender2End and offender1End > offender2End then
+                    offenderStart = offender1Start
+                    offenderEnd = offender1End
+                else
+                    if offender2Start then
+                        offenderStart = offender2Start
+                        offenderEnd = offender2End
+                    else
+                        offenderStart = offender1Start
+                        offenderEnd = offender1End
+                    end
+                end
+            end
+            if offenderStart < regStart or offenderEnd > regEnd then
+                tEnv.mode = "none"
+                return 0, tEnv.y
+            end
+            addrCpy = addrCpy:sub(regEnd)
+        end
 	end
 	-- Replace all Regex with their respective lines
 	if addr:match("/.+/") then
@@ -432,6 +465,7 @@ local function main()
 		end
 		-- Remove addresses from input
 		input = input:sub(splitter)	
+
 		-- Normal mode commands
 		if input == "" and addr2 then
 			tEnv["y"] = tonumber(addr2)
@@ -484,6 +518,72 @@ local function main()
 			else
 				tBookms[suffix] = addr2
 			end
+        elseif input:match("s%?.+%?.*%?.*") or input:match("s/.+/.*/.*") then
+            local regex = input:match("[/%?][^/%?]+[/%?]")
+            if regex then
+                print(regex)
+                -- add % in front of character classes to prohibit regex confusion
+                cleanRegex = regex:gsub("%^", "%%^"):gsub("%$", "%%$"):gsub("%%", "%%%%")
+                cleanRegex = cleanRegex:gsub("%+", "%%+"):gsub("%-", "%%-"):gsub("%?", "%%?")
+                cleanRegex = cleanRegex:gsub("%.", "%%."):gsub("%(", "%%("):gsub("%)", "%%)"):gsub("%[", "%%["):gsub("%]", "%%]"):gsub("%*", "%%*")
+
+                print(cleanRegex)
+
+                local regStart, regEnd = input:find(cleanRegex)
+                regStart = regStart + 1
+                regEnd = regEnd - 1
+                regex = input:sub(regStart, regEnd)
+                input = input:sub(regEnd+1)
+
+                local repl = input:match("[/%?][^/%?]+[/%?]")
+                local replStart, replEnd = input:find(repl)
+                replStart = replStart + 1
+                replEnd = replEnd - 1
+                if repl:len() > 2 then repl = input:sub(replStart, replEnd) end
+                input = input:sub(replEnd+2)
+
+                local suffix = input
+
+                if suffix == "g" then
+                    for i=addr1, addr2 do
+                        if tLines[i]:match(regex) then
+                            tLines[i] = tLines[i]:gsub(regex, repl)
+                            foundMatch = true
+                        end
+                    end
+                elseif suffix == "n" then
+                    for i =addr1, addr2 do
+                        if tLines[i]:match(regex) then
+                            normCmds["n"](i, i)
+                            break
+                        end
+                    end
+                elseif suffix == "p" then
+                    for i=addr1, addr2 do
+                        if tLines[i]:match(regex) then
+                            normCmds["p"](i, i)
+                            break
+                        end
+                    end
+                elseif suffix == "l" then
+                    for i=addr1, addr2 do
+                        if tLines[i]:match(regex) then
+                            normCmds["l"](i, i)
+                            break
+                        end
+                    end
+                elseif suffix:match("%d+") then
+                    local count = tonumber( suffix:match("%d+") )
+                    local n = 0
+                    for i=addr1, addr2 do
+                        if tLines[i]:match(regex) then
+                            tLines[i], n = tLines[i]:gsub(regex, repl, count)
+                        end
+                        count = count - n
+                        if count == 0 then break end
+                    end
+                end
+            end
 		else
 			if normCmds[input] == nil then
 				ed_error("Unknown command")
