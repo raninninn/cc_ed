@@ -535,14 +535,21 @@ local function main()
                 regex = input:sub(regStart, regEnd)
                 input = input:sub(regEnd+1)
 
-                local repl = input:match("[/%?][^/%?]+[/%?]")
+                local repl = input:match("[/%?][^/%?]*[/%?]")
                 local replStart, replEnd = input:find(repl)
                 replStart = replStart + 1
                 replEnd = replEnd - 1
-                if repl:len() > 2 then repl = input:sub(replStart, replEnd) end
+                if repl:len() > 2 then
+                    repl = input:sub(replStart, replEnd)
+                else
+                    repl = ""
+                end
                 input = input:sub(replEnd+2)
 
                 local suffix = input
+                if suffix == "" then
+                    suffix = "1"
+                end
 
                 if suffix == "g" then
                     for i=addr1, addr2 do
