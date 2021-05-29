@@ -79,7 +79,7 @@ local function load(_sPath)
     end
 end
 
-local function writeFile(_sPath, _addr1, _addr2)
+local function writeFile(_sPath, _addr1, _addr2, _mode)
     -- Create intervening folder
     local sDir = _sPath:sub(1, _sPath:len() - fs.getName(_sPath):len())
     if not fs.exists(sDir) then
@@ -89,7 +89,7 @@ local function writeFile(_sPath, _addr1, _addr2)
     -- Save
     local file, fileerr
     local function innerWrite()
-        file, fileerr = fs.open(_sPath, "w")
+        file, fileerr = fs.open(_sPath, _mode)
         if file then
             for i = _addr1, _addr2 do
                 file.write(tLines[i] .. "\n")
@@ -510,13 +510,34 @@ local function main()
 				sPath = shell.resolve(input)
 			end
 			if sPath then
-				writeFile(sPath, addr1, addr2)
+				writeFile(sPath, addr1, addr2, "w")
                 if addr1 == 1 and addr2 == #tLines then
                     tEnv.unsaved = false
                 end
 			else ed_error("No current filename") end
             if quitAfter then
                 tEnv.bRunning = false
+            end
+        elseif input:match("W.-") then
+            if input:sub(1,1) ~= "W" then
+                ed_error("Unknown command")
+                return
+            end
+            if tEnv.implicitAddr then
+                addr1 = 1
+                addr2 = #tLines
+            end
+            -- find filename
+            local input = input:gsub("%s", ""):sub(2)
+            local sPath = sPath
+            if string.len(input) > 0 then
+                sPath = shell.resolve(input)
+            end
+            if sPath then
+                writeFile(sPath, addr1, addr2, "a")
+                if addr1 == 1 and addr2 == #tLines then
+                    tEnv.unsaved = false
+                end
             end
 		elseif input:match("set") then
             if input:sub(1,3) ~= "set" then
