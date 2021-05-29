@@ -79,7 +79,7 @@ local function load(_sPath)
     end
 end
 
-local function save(_sPath, _addr1, _addr2)
+local function writeFile(_sPath, _addr1, _addr2)
     -- Create intervening folder
     local sDir = _sPath:sub(1, _sPath:len() - fs.getName(_sPath):len())
     if not fs.exists(sDir) then
@@ -88,7 +88,7 @@ local function save(_sPath, _addr1, _addr2)
 
     -- Save
     local file, fileerr
-    local function innerSave()
+    local function innerWrite()
         file, fileerr = fs.open(_sPath, "w")
         if file then
             for i = _addr1, _addr2 do
@@ -99,8 +99,9 @@ local function save(_sPath, _addr1, _addr2)
         end
     end
 
-    local ok, err = pcall(innerSave)
+    local ok, err = pcall(innerWrite)
     if file then
+        file.flush()
         file.close()
     end
     return ok, err, fileerr
@@ -492,15 +493,31 @@ local function main()
                 addr1 = 1
                 addr2 = #tLines
             end
-			local input = string.sub( input:gsub("%s", ""), 2)
+            -- wq
+            local quitAfter = false
+            if input:sub(2,2) == "q" then
+                quitAfter = true
+            end
+            local input = input
+            -- find filename
+            if quitAfter == false then
+                input = input:gsub("%s", ""):sub(2)
+            else
+                input = input:gsub("%s", ""):sub(3)
+            end
 			local sPath = sPath
 			if string.len(input) > 0 then
 				sPath = shell.resolve(input)
 			end
 			if sPath then
-				save(sPath, addr1, addr2)
-				tEnv.unsaved = false
+				writeFile(sPath, addr1, addr2)
+                if addr1 == 1 and addr2 == #tLines then
+                    tEnv.unsaved = false
+                end
 			else ed_error("No current filename") end
+            if quitAfter then
+                tEnv.bRunning = false
+            end
 		elseif input:match("set") then
             if input:sub(1,3) ~= "set" then
                 ed_error("Unknown command")
