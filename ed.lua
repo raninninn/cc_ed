@@ -480,6 +480,10 @@ local function main()
 				ed_error("Invalid address")
 			end
 		elseif input:match("w.-") then
+            if input:sub(1,1) ~= "w" then
+                ed_error("Unknown command")
+                return
+            end
 			local input = string.sub( input:gsub("%s", ""), 2)
 			local sPath = sPath
 			if string.len(input) > 0 then
@@ -490,6 +494,10 @@ local function main()
 				tEnv.unsaved = false
 			else ed_error("No current filename") end
 		elseif input:match("set") then
+            if input:sub(1,3) ~= "set" then
+                ed_error("Unknown command")
+                return
+            end
 			-- find argument
 			local arg = input:gsub("set", "")
 			arg = arg:gsub("%s+", "")
@@ -514,6 +522,10 @@ local function main()
 				ed_error("Not enough arguments")
 			end
 		elseif input:match("k%l?") then
+            if not input:sub(1,2):match("'%l") then
+                ed_error("Unknown command")
+                return
+            end
 			local suffix = input:sub(2)
 			if string.len(input) ~= 2 then
 				ed_error("Invalid command suffix")
@@ -521,6 +533,10 @@ local function main()
 				tBookms[suffix] = addr2
 			end
         elseif input:match("s%?.+%?.*%?.*") or input:match("s/.+/.*/.*") then
+            if input:sub(1,1) ~= "s" then
+                ed_error("Unknown command")
+                return
+            end
             local regex = input:match("[/%?][^/%?]+[/%?]")
             if regex then
                 print(regex)
