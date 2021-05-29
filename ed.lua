@@ -175,9 +175,9 @@ end
 local function splitAddr( input )
 	local splitter = 0
 	local input = input.."a"
-	-- find first occurance of a letter that isn't part of regex, if it is lower case and has `'` before it, go to next occurance
-	while input:find("%a") do
-		local mbSplitter = input:find("%a")
+	-- find first occurance of a letter or = that isn't part of regex, if it is lower case and has `'` before it, go to next occurance
+	while input:find("[%a=]") do
+		local mbSplitter = input:find("[%a=]")
 		local i,j = input:find("%b//")
 		local ii, jj = input:find("%b??")
 		if i == nil or i ~= nil and ii ~= nil and i < ii then
@@ -211,7 +211,8 @@ local function findAddr( input )
 	local addressBuff = {}
 	local splitter = splitAddr( input )
 	local addr = input:sub(1, splitter-1)
-	if input:len() == 1 and input:match("[%d,.;]") then
+
+	if input:len() == 1 and input:match("[%d,%.;]") then
 		addr = input
 	end
 	-- Error if more than 2 addresses are given
@@ -436,6 +437,7 @@ local normCmds = {
 	["H"] = function() if tEnv.bPrint_error == false then
 							tEnv.bPrint_error = true print(tEnv.last_error)
 						else tEnv.bPrint_error = false end end,
+    ["="] = function() print(tEnv.y) end,
 	}
 	
 
@@ -464,7 +466,7 @@ local function main()
 			return
 		end
 		-- Remove addresses from input
-		input = input:sub(splitter)	
+		input = input:sub(splitter)
 
 		-- Normal mode commands
 		if input == "" and addr2 then
