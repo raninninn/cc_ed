@@ -17,6 +17,7 @@ local tEnv = {
 	["last_error"] = 0,
 	["bPrint_error"] = false,
     ["last_cmd"] = false,
+    ["implicitAddr"] = false
 }
 -- Bookmarks
 local tBookms = {}
@@ -78,7 +79,7 @@ local function load(_sPath)
     end
 end
 
-local function save(_sPath)
+local function save(_sPath, _addr1, _addr2)
     -- Create intervening folder
     local sDir = _sPath:sub(1, _sPath:len() - fs.getName(_sPath):len())
     if not fs.exists(sDir) then
@@ -90,8 +91,8 @@ local function save(_sPath)
     local function innerSave()
         file, fileerr = fs.open(_sPath, "w")
         if file then
-            for _, sLine in ipairs(tLines) do
-                file.write(sLine .. "\n")
+            for i = _addr1, _addr2 do
+                file.write(tLines[i] .. "\n")
             end
         else
 			ed_error("Cannot open output file")
@@ -211,6 +212,8 @@ local function findAddr( input )
 	local addressBuff = {}
 	local splitter = splitAddr( input )
 	local addr = input:sub(1, splitter-1)
+
+    tEnv.implicitAddr = false
 
 	if input:len() == 1 and input:match("[%d,%.;]") then
 		addr = input
@@ -373,7 +376,7 @@ local function findAddr( input )
 	local addr1 = addressBuff[ table.maxn(addressBuff)-1 ]
 	local addr2 = addressBuff[ table.maxn(addressBuff) ]
 	if addr1 == nil and addr2 == nil then
-		if addr:match(",;") or input:match(";,") ~= nil then
+		if addr:match(",;") or addr:match(";,") ~= nil then
 			addr1 = tEnv.y
 			addr2 = tEnv.y
 		elseif addr:match(",") ~= nil then
@@ -383,6 +386,7 @@ local function findAddr( input )
 			addr1 = tEnv.y
 			addr2 = #tLines
 		elseif input ~= "" then
+            tEnv.implicitAddr = true
 			addr1 = tEnv.y
 			addr2 = tEnv.y
 		end
@@ -484,13 +488,17 @@ local function main()
                 ed_error("Unknown command")
                 return
             end
+            if tEnv.implicitAddr then
+                addr1 = 1
+                addr2 = #tLines
+            end
 			local input = string.sub( input:gsub("%s", ""), 2)
 			local sPath = sPath
 			if string.len(input) > 0 then
 				sPath = shell.resolve(input)
 			end
 			if sPath then
-				save(sPath)
+				save(sPath, addr1, addr2)
 				tEnv.unsaved = false
 			else ed_error("No current filename") end
 		elseif input:match("set") then
