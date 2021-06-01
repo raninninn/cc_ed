@@ -16,8 +16,8 @@ local tEnv = {
 	["syntaxHL"] = false,
 	["last_error"] = 0,
 	["bPrint_error"] = false,
-    ["last_cmd"] = false,
-    ["implicitAddr"] = false
+  ["last_cmd"] = false,
+  ["implicitAddr"] = false
 }
 -- Bookmarks
 local tBookms = {}
@@ -37,19 +37,19 @@ end
 -- Colours
 local highlightColour, keywordColour, commentColour, textColour, bgColour, stringColour
 if term.isColour() then
-    bgColour = colours.black
-    textColour = colours.white
-    highlightColour = colours.yellow
-    keywordColour = colours.yellow
-    commentColour = colours.green
-    stringColour = colours.red
+  bgColour = colours.black
+  textColour = colours.white
+  highlightColour = colours.yellow
+  keywordColour = colours.yellow
+  commentColour = colours.green
+  stringColour = colours.red
 else
-    bgColour = colours.black
-    textColour = colours.white
-    highlightColour = colours.white
-    keywordColour = colours.white
-    commentColour = colours.grey
-    stringColour = colours.white
+  bgColour = colours.black
+  textColour = colours.white
+  highlightColour = colours.white
+  keywordColour = colours.white
+  commentColour = colours.grey
+  stringColour = colours.white
 end
 
 local function ed_error(error)
@@ -61,108 +61,108 @@ local function ed_error(error)
 end
 
 local function load(_sPath)
-    tLines = {}
-    if _sPath and fs.exists(_sPath) and not fs.isDir(_sPath) then
-        local file = io.open(_sPath, "r")
-        local sLine = file:read()
-        while sLine do
-            table.insert(tLines, sLine)
-            sLine = file:read()
-        end
-        file:close()
+  tLines = {}
+  if _sPath and fs.exists(_sPath) and not fs.isDir(_sPath) then
+    local file = io.open(_sPath, "r")
+    local sLine = file:read()
+    while sLine do
+      table.insert(tLines, sLine)
+      sLine = file:read()
+    end
+    file:close()
 	else
 		tEnv.last_error = "Cannot read input file"
 	end
 
-    if #tLines == 0 then
-        table.insert(tLines, "")
-    end
+  if #tLines == 0 then
+    table.insert(tLines, "")
+  end
 end
 
 local function writeFile(_sPath, _addr1, _addr2, _mode)
-    -- Create intervening folder
-    local sDir = _sPath:sub(1, _sPath:len() - fs.getName(_sPath):len())
-    if not fs.exists(sDir) then
-        fs.makeDir(sDir)
-    end
+  -- Create intervening folder
+  local sDir = _sPath:sub(1, _sPath:len() - fs.getName(_sPath):len())
+  if not fs.exists(sDir) then
+    fs.makeDir(sDir)
+  end
 
-    -- Save
-    local file, fileerr
-    local function innerWrite()
-        file, fileerr = fs.open(_sPath, _mode)
-        if file then
-            for i = _addr1, _addr2 do
-                file.write(tLines[i] .. "\n")
-            end
-        else
-			ed_error("Cannot open output file")
-        end
-    end
-
-    local ok, err = pcall(innerWrite)
+  -- Save
+  local file, fileerr
+  local function innerWrite()
+    file, fileerr = fs.open(_sPath, _mode)
     if file then
-        file.flush()
-        file.close()
+    	for i = _addr1, _addr2 do
+        file.write(tLines[i] .. "\n")
+      end
+    else
+			ed_error("Cannot open output file")
     end
-    return ok, err, fileerr
+  end
+
+  local ok, err = pcall(innerWrite)
+  if file then
+    file.flush()
+    file.close()
+  end
+  return ok, err, fileerr
 end
 
 local tKeywords = {
-    ["and"] = true,
-    ["break"] = true,
-    ["do"] = true,
-    ["else"] = true,
-    ["elseif"] = true,
-    ["end"] = true,
-    ["false"] = true,
-    ["for"] = true,
-    ["function"] = true,
-    ["if"] = true,
-    ["in"] = true,
-    ["local"] = true,
-    ["nil"] = true,
-    ["not"] = true,
-    ["or"] = true,
-    ["repeat"] = true,
-    ["return"] = true,
-    ["then"] = true,
-    ["true"] = true,
-    ["until"] = true,
-    ["while"] = true,
+  ["and"] = true,
+  ["break"] = true,
+  ["do"] = true,
+  ["else"] = true,
+  ["elseif"] = true,
+  ["end"] = true,
+  ["false"] = true,
+  ["for"] = true,
+  ["function"] = true,
+  ["if"] = true,
+  ["in"] = true,
+  ["local"] = true,
+  ["nil"] = true,
+  ["not"] = true,
+  ["or"] = true,
+  ["repeat"] = true,
+  ["return"] = true,
+  ["then"] = true,
+  ["true"] = true,
+  ["until"] = true,
+  ["while"] = true,
 }
 
 local function tryWrite(sLine, regex, colour)
-    local match = string.match(sLine, regex)
-    if match then
-        if type(colour) == "number" then
-            term.setTextColour(colour)
-        else
-            term.setTextColour(colour(match))
-        end
-        term.write(match)
-        term.setTextColour(textColour)
-        return string.sub(sLine, #match + 1)
+  local match = string.match(sLine, regex)
+  if match then
+    if type(colour) == "number" then
+      term.setTextColour(colour)
+    else
+    	term.setTextColour(colour(match))
     end
-    return nil
+    term.write(match)
+    term.setTextColour(textColour)
+    return string.sub(sLine, #match + 1)
+  end
+  return nil
 end
 
 local function writeHighlighted(sLine)
-    while #sLine > 0 do
-        sLine =
-            tryWrite(sLine, "^%-%-%[%[.-%]%]", commentColour) or
-            tryWrite(sLine, "^%-%-.*", commentColour) or
-            tryWrite(sLine, "^\"\"", stringColour) or
-            tryWrite(sLine, "^\".-[^\\]\"", stringColour) or
-            tryWrite(sLine, "^\'\'", stringColour) or
-            tryWrite(sLine, "^\'.-[^\\]\'", stringColour) or
-            tryWrite(sLine, "^%[%[.-%]%]", stringColour) or
-            tryWrite(sLine, "^[%w_]+", function(match)
-                if tKeywords[match] then
-                    return keywordColour
-                end
-                return textColour
-            end) or
-            tryWrite(sLine, "^[^%w_]", textColour)
+  while #sLine > 0 do
+    sLine =
+      tryWrite(sLine, "^%-%-%[%[.-%]%]", commentColour) or
+      tryWrite(sLine, "^%-%-.*", commentColour) or
+      tryWrite(sLine, "^\"\"", stringColour) or
+      tryWrite(sLine, "^\".-[^\\]\"", stringColour) or
+      tryWrite(sLine, "^\'\'", stringColour) or
+      tryWrite(sLine, "^\'.-[^\\]\'", stringColour) or
+      tryWrite(sLine, "^%[%[.-%]%]", stringColour) or
+      tryWrite(sLine, "^[%w_]+", function(match)
+      if tKeywords[match] then
+        return keywordColour
+      end
+      return textColour
+      end) or
+        tryWrite(sLine, "^[^%w_]", textColour)
     end
 end
 
@@ -214,7 +214,7 @@ local function findAddr( input )
 	local splitter = splitAddr( input )
 	local addr = input:sub(1, splitter-1)
 
-    tEnv.implicitAddr = false
+  tEnv.implicitAddr = false
 
 	if input:len() == 1 and input:match("[%d,%.;]") then
 		addr = input
@@ -225,41 +225,41 @@ local function findAddr( input )
 	end
 	-- Error if `+` or `-` is before `'x` or `/`
 	if addr:match("[%+%-]'%l") or input:match("[%+%-][%?/]") then
-        -- check we're not inside of regex
-        addrCpy = addr
-        while addrCpy:match("[%+%-]'%l") or addrCpy:match("[%+%-][%?/]") do
-            local regStart, regEnd = 0, 0
-            local regStart, regEnd = addrCpy:find("[/%?][^/%?]+[/%?]")
-            local offender1Start, offender1End = addrCpy:find("[%+%-]'%l")
-            local offender2Start, offender2End = addrCpy:find("[%+%-][/%?]")
-            local offenderStart, offenderEnd = 0, 0
+    -- check we're not inside of regex
+    addrCpy = addr
+    while addrCpy:match("[%+%-]'%l") or addrCpy:match("[%+%-][%?/]") do
+      local regStart, regEnd = 0, 0
+      local regStart, regEnd = addrCpy:find("[/%?][^/%?]+[/%?]")
+      local offender1Start, offender1End = addrCpy:find("[%+%-]'%l")
+      local offender2Start, offender2End = addrCpy:find("[%+%-][/%?]")
+      local offenderStart, offenderEnd = 0, 0
 
-            if offender1Start and offender2Start and offender1Start < offender2Start then
-                offenderStart = offender1Start
-                offenderEnd = offender1End
-            elseif offender1Start and offender2Start and offender1Start > offender2Start then
-                offenderStart = offender2Start
-                offenderEnd = offender2End
-            else
-                if offender1End and offender2End and offender1End > offender2End then
-                    offenderStart = offender1Start
-                    offenderEnd = offender1End
-                else
-                    if offender2Start then
-                        offenderStart = offender2Start
-                        offenderEnd = offender2End
-                    else
-                        offenderStart = offender1Start
-                        offenderEnd = offender1End
-                    end
-                end
-            end
-            if offenderStart < regStart or offenderEnd > regEnd then
-                tEnv.mode = "none"
-                return 0, tEnv.y
-            end
-            addrCpy = addrCpy:sub(regEnd)
+      if offender1Start and offender2Start and offender1Start < offender2Start then
+        offenderStart = offender1Start
+        offenderEnd = offender1End
+      elseif offender1Start and offender2Start and offender1Start > offender2Start then
+        offenderStart = offender2Start
+        offenderEnd = offender2End
+      else
+        if offender1End and offender2End and offender1End > offender2End then
+          offenderStart = offender1Start
+        	offenderEnd = offender1End
+        else
+        	if offender2Start then
+            offenderStart = offender2Start
+            offenderEnd = offender2End
+          else
+            offenderStart = offender1Start
+            offenderEnd = offender1End
+          end
         end
+      end
+      if offenderStart < regStart or offenderEnd > regEnd then
+        tEnv.mode = "none"
+        return 0, tEnv.y
+      end
+      addrCpy = addrCpy:sub(regEnd)
+    end
 	end
 	-- Replace all Regex with their respective lines
 	if addr:match("/.+/") then
@@ -387,7 +387,7 @@ local function findAddr( input )
 			addr1 = tEnv.y
 			addr2 = #tLines
 		elseif input ~= "" then
-            tEnv.implicitAddr = true
+      tEnv.implicitAddr = true
 			addr1 = tEnv.y
 			addr2 = tEnv.y
 		end
@@ -426,22 +426,24 @@ local normCmds = {
 				end
 			end,
 	["Q"] = function() tEnv.bRunning = false end,
-    ["q"] = function()
-                if tEnv.unsaved == true then
-                    if tEnv.last_cmd == "q" then
-                        tEnv.bRunning = false
-                    else
-                        ed_error("Warning: buffer modified")
-                    end
-                else tEnv.bRunning = false end
-            end,
+  ["q"] = function()
+        if tEnv.unsaved == true then
+          if tEnv.last_cmd == "q" then
+            tEnv.bRunning = false
+          else
+            ed_error("Warning: buffer modified")
+          end
+        else tEnv.bRunning = false end
+      end,
 	["d"] = function(addr1, addr2) for i=addr1, addr2 do table.remove(tLines, i) tEnv.unsaved = true end end,
 	["i"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2 end,
 	["a"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2+1 end,
 	["c"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2 tEnv.change = true end,
-	["H"] = function() if tEnv.bPrint_error == false then
-							tEnv.bPrint_error = true print(tEnv.last_error)
-						else tEnv.bPrint_error = false end end,
+	["H"] = function()
+				if tEnv.bPrint_error == false then
+					tEnv.bPrint_error = true print(tEnv.last_error)
+				else tEnv.bPrint_error = false end
+			end,
     ["="] = function() print(tEnv.y) end,
 	}
 
@@ -478,8 +480,8 @@ local function main()
 			tEnv["y"] = tonumber(addr2)
 			print(tLines[tEnv["y"]])
 		elseif input == "" and addr1 == nil then
-            print(tEnv.y)
-            print(type(tEnv.y).." "..type(#tLines))
+      print(tEnv.y)
+      print(type(tEnv.y).." "..type(#tLines))
 			if tEnv.y < #tLines then
 				tEnv.y = tEnv.y + 1
 				print(tLines[tEnv.y])
@@ -570,128 +572,127 @@ local function main()
 				ed_error("Not enough arguments")
 			end
 		elseif input:match("k%l?") then
-            if not input:sub(1,2):match("'%l") then
-                ed_error("Unknown command")
-                return
-            end
+      if not input:sub(1,2):match("'%l") then
+        ed_error("Unknown command")
+        return
+      end
 			local suffix = input:sub(2)
 			if string.len(input) ~= 2 then
 				ed_error("Invalid command suffix")
 			else
 				tBookms[suffix] = addr2
 			end
-        elseif input:match("s%?.+%?.*%?.*") or input:match("s/.+/.*/.*") then
-            if input:sub(1,1) ~= "s" then
-                ed_error("Unknown command")
-                return
+    elseif input:match("s%?.+%?.*%?.*") or input:match("s/.+/.*/.*") then
+      if input:sub(1,1) ~= "s" then
+        ed_error("Unknown command")
+        return
+      end
+    	local regex = input:match("[/%?][^/%?]+[/%?]")
+      if regex then
+      	-- add % in front of character classes to prohibit regex confusion
+        cleanRegex = regex:gsub("%^", "%%^"):gsub("%$", "%%$"):gsub("%%", "%%%%")
+        cleanRegex = cleanRegex:gsub("%+", "%%+"):gsub("%-", "%%-"):gsub("%?", "%%?")
+        cleanRegex = cleanRegex:gsub("%.", "%%."):gsub("%(", "%%("):gsub("%)", "%%)"):gsub("%[", "%%["):gsub("%]", "%%]"):gsub("%*", "%%*")
+
+        local regStart, regEnd = input:find(cleanRegex)
+        regStart = regStart + 1
+        regEnd = regEnd - 1
+        regex = input:sub(regStart, regEnd)
+        input = input:sub(regEnd+1)
+
+        local repl = input:match("[/%?][^/%?]*[/%?]")
+        local replStart, replEnd = input:find(repl)
+        replStart = replStart + 1
+        replEnd = replEnd - 1
+        if repl:len() > 2 then
+          repl = input:sub(replStart, replEnd)
+        else
+          repl = ""
+        end
+        input = input:sub(replEnd+2)
+
+        -- determine number of repetitions
+        local count = input:match("%d+")
+        if input:match("g") then
+          count = "all"
+        end
+        if count == nil then
+          count = 1
+        end
+
+        -- strip count from command list
+        local comList = nil
+        if countSt ~= nil then
+          print(input:sub(1, countSt-1))
+          comList = input:gsub("%d+", "")
+          comList = input:gsub("g", "")
+        else
+          comList = input
+        end
+
+        -- replacing
+        local cCount = 1
+				local cTlines = {table.unpack(tLines)}
+        for i = addr1, addr2 do
+          if count ~= "all" then
+            count = tonumber(count)
+            local sLine = tLines[i]
+            local cPos = 0
+            while sLine:match(regex) do
+              local regFindS, regFindE = sLine:find(regex)
+              if cCount == count then
+                tLines[i] = tLines[i]:sub(1,cPos + regFindS-1) .. repl .. tLines[i]:sub(cPos + regFindE+1)
+                break
+              else
+                sLine = sLine:sub(regFindE+1)
+                cPos = regFindE
+              end
+              cCount = cCount + 1
             end
-            local regex = input:match("[/%?][^/%?]+[/%?]")
-            if regex then
-                -- add % in front of character classes to prohibit regex confusion
-                cleanRegex = regex:gsub("%^", "%%^"):gsub("%$", "%%$"):gsub("%%", "%%%%")
-                cleanRegex = cleanRegex:gsub("%+", "%%+"):gsub("%-", "%%-"):gsub("%?", "%%?")
-                cleanRegex = cleanRegex:gsub("%.", "%%."):gsub("%(", "%%("):gsub("%)", "%%)"):gsub("%[", "%%["):gsub("%]", "%%]"):gsub("%*", "%%*")
-
-
-                local regStart, regEnd = input:find(cleanRegex)
-                regStart = regStart + 1
-                regEnd = regEnd - 1
-                regex = input:sub(regStart, regEnd)
-                input = input:sub(regEnd+1)
-
-                local repl = input:match("[/%?][^/%?]*[/%?]")
-                local replStart, replEnd = input:find(repl)
-                replStart = replStart + 1
-                replEnd = replEnd - 1
-                if repl:len() > 2 then
-                    repl = input:sub(replStart, replEnd)
-                else
-                    repl = ""
-                end
-                input = input:sub(replEnd+2)
-
-                -- determine number of repetitions
-                local count = input:match("%d+")
-                if input:match("g") then
-                    count = "all"
-                end
-                if count == nil then
-                    count = 1
-                end
-
-                -- strip count from command list
-                local comList = nil
-                if countSt ~= nil then
-                    print(input:sub(1, countSt-1))
-                    comList = input:gsub("%d+", "")
-                    comList = input:gsub("g", "")
-                else
-                    comList = input
-                end
-
-                -- replacing
-                local cCount = 1
-								local cTlines = {table.unpack(tLines)}
-                for i = addr1, addr2 do
-                    if count ~= "all" then
-                        count = tonumber(count)
-                        local sLine = tLines[i]
-                        local cPos = 0
-                        while sLine:match(regex) do
-                            local regFindS, regFindE = sLine:find(regex)
-                            if cCount == count then
-                                tLines[i] = tLines[i]:sub(1,cPos + regFindS-1) .. repl .. tLines[i]:sub(cPos + regFindE+1)
-                                break
-                            else
-                               sLine = sLine:sub(regFindE+1)
-                               cPos = regFindE
-                            end
-                            cCount = cCount + 1
-                        end
-                        if cCount == count then
-                            break
-                        end
-                    else
-                        tLines[i] = tLines[i]:gsub(regex, repl)
-                    end
-                end
-                -- loop over command list
-                local x = string.len(comList)
-                for i=1, x do
-                    local suffix = comList:sub(i, i)
-                    if suffix == "n" then
-                        local lastMatch = 0
-                        for i = addr1, addr2 do
-                            if cTlines[i]:match(regex) then
-                                lastMatch = i
-                            end
-                        end
-                        if lastMatch ~= 0 then
-                           normCmds["n"](lastMatch, lastMatch)
-                        end
-                    elseif suffix == "p" then
-                        local lastMatch = 0
-                        for i=addr1, addr2 do
-                            if cTlines[i]:match(regex) then
-                                lastMatch = i
-                            end
-                        end
-                        if lastMatch ~= 0 then
-                            normCmds["p"](lastMatch, lastMatch)
-                        end
-                    elseif suffix == "l" then
-                        local lastMatch = 0
-                        for i=addr1, addr2 do
-                            if cTlines[i]:match(regex) then
-                                lastMatch = i
-                            end
-                        end
-                        if lastMatch ~= 0 then
-                            normCmds["l"](lastMatch, lastMatch)
-                        end
-                    end
-                end
+            if cCount == count then
+              break
             end
+          else
+            tLines[i] = tLines[i]:gsub(regex, repl)
+          end
+        end
+        -- loop over command list
+        local x = string.len(comList)
+        for i=1, x do
+          local suffix = comList:sub(i, i)
+          if suffix == "n" then
+            local lastMatch = 0
+            for i = addr1, addr2 do
+              if cTlines[i]:match(regex) then
+                lastMatch = i
+              end
+            end
+            if lastMatch ~= 0 then
+              normCmds["n"](lastMatch, lastMatch)
+            end
+            elseif suffix == "p" then
+              local lastMatch = 0
+              for i=addr1, addr2 do
+                if cTlines[i]:match(regex) then
+                  lastMatch = i
+                end
+              end
+              if lastMatch ~= 0 then
+                normCmds["p"](lastMatch, lastMatch)
+              end
+            elseif suffix == "l" then
+              local lastMatch = 0
+              for i=addr1, addr2 do
+                if cTlines[i]:match(regex) then
+                  lastMatch = i
+                end
+              end
+              if lastMatch ~= 0 then
+                normCmds["l"](lastMatch, lastMatch)
+              end
+            end
+        	end
+    		end
 		else
 			if normCmds[input] == nil then
 				ed_error("Unknown command")
