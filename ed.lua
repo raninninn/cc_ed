@@ -17,7 +17,8 @@ local tEnv = {
 	["last_error"] = 0,
 	["bPrint_error"] = false,
   ["last_cmd"] = false,
-  ["implicitAddr"] = false
+  ["implicitAddr"] = false,
+	["lastS"] = {}
 }
 -- Bookmarks
 local tBookms = {}
@@ -451,8 +452,8 @@ local normCmds = {
 					tEnv.bPrint_error = true print(tEnv.last_error)
 				else tEnv.bPrint_error = false end
 			end,
-    ["="] = function() print(tEnv.y) end,
-	}
+	["="] = function() print(tEnv.y) end,
+}
 
 
 if tEnv.last_error ~= 0 then print(tEnv.last_error) end
@@ -589,117 +590,151 @@ local function main()
 			else
 				tBookms[suffix] = addr2
 			end
-    elseif input:match("s%?.+%?.*%?.*") or input:match("s/.+/.*/.*") then
-      if input:sub(1,1) ~= "s" then
-        ed_error("Unknown command")
-        return
-      end
-    	local regex = input:match("[/%?][^/%?]+[/%?]")
-      if regex then
-      	-- add % in front of character classes to prohibit regex confusion
-        cleanRegex = regex:gsub("%^", "%%^"):gsub("%$", "%%$"):gsub("%%", "%%%%")
-        cleanRegex = cleanRegex:gsub("%+", "%%+"):gsub("%-", "%%-"):gsub("%?", "%%?")
-        cleanRegex = cleanRegex:gsub("%.", "%%."):gsub("%(", "%%("):gsub("%)", "%%)"):gsub("%[", "%%["):gsub("%]", "%%]"):gsub("%*", "%%*")
+		elseif input:match("s") then
+			if input:sub(1,1) ~= "s" then
+				ed_error("Unknown command")
+				return
+			end
 
-        local regStart, regEnd = input:find(cleanRegex)
-        regStart = regStart + 1
-        regEnd = regEnd - 1
-        regex = input:sub(regStart, regEnd)
-        input = input:sub(regEnd+1)
+			local comList = ""
+			local cTlines = {table.unpack(tLines)}
 
-        local repl = input:match("[/%?][^/%?]*[/%?]")
-        local replStart, replEnd = input:find(repl)
-        replStart = replStart + 1
-        replEnd = replEnd - 1
-        if repl:len() > 2 then
-          repl = input:sub(replStart, replEnd)
-        else
-          repl = ""
-        end
-        input = input:sub(replEnd+2)
+			local function doSuffices(_comList, _regex)
+				print(_comList)
+				print(_regex)
+				local comListLen = string.len(_comList)
+				for i=1, comListLen do
+					local suffix = _comList:sub(i, i)
+					if suffix == "n" then
+						local lastMatch = 0
+						for i = addr1, addr2 do
+							if cTlines[i]:match(_regex) then
+								lastMatch = i
+							end
+						end
+						if lastMatch ~= 0 then
+							normCmds["n"](lastMatch, lastMatch)
+						end
+					elseif suffix == "p" then
+						local lastMatch = 0
+						for i=addr1, addr2 do
+							if cTlines[i]:match(_regex) then
+								lastMatch = i
+							end
+						end
+						if lastMatch ~= 0 then
+							normCmds["p"](lastMatch, lastMatch)
+						end
+					elseif suffix == "l" then
+						local lastMatch = 0
+						for i=addr1, addr2 do
+							if cTlines[i]:match(_regex) then
+								lastMatch = i
+							end
+						end
+						if lastMatch ~= 0 then
+							normCmds["l"](lastMatch, lastMatch)
+						end
+					end
+				end
+			end
 
-        -- determine number of repetitions
-        local count = input:match("%d+")
-        if input:match("g") then
-          count = "all"
-        end
-        if count == nil then
-          count = 1
-        end
+			local function doRepl(regex, repl, count)
+				local cCount = 1
+				for i = addr1, addr2 do
+					if count ~= "all" then
+						count = tonumber(count)
+						local sLine = tLines[i]
+						local cPos = 0
+						while sLine:match(regex) do
+							local regFindS, regFindE = sLine:find(regex)
+							if cCount == count then
+								tLines[i] = tLines[i]:sub(1,cPos + regFindS-1) .. repl .. tLines[i]:sub(cPos + regFindE+1)
+								break
+							else
+								sLine = sLine:sub(regFindE+1)
+								cPos = regFindE
+							end
+							cCount = cCount + 1
+						end
+						if cCount == count then
+							break
+						end
+					else
+						tLines[i] = tLines[i]:gsub(regex, repl)
+					end
+				end
+				tEnv.unsaved = true
+			end
 
-        -- strip count from command list
-        local comList = nil
-        if countSt ~= nil then
-          print(input:sub(1, countSt-1))
-          comList = input:gsub("%d+", "")
-          comList = input:gsub("g", "")
-        else
-          comList = input
-        end
+			local function findCount(input)
+				local count = input:match("%d+")
+				if input:match("g") then
+					count = "all"
+				end
+				if count == nil then
+					count = 1
+				end
+				return count
+			end
 
-        -- replacing
-        local cCount = 1
-				local cTlines = {table.unpack(tLines)}
-        for i = addr1, addr2 do
-          if count ~= "all" then
-            count = tonumber(count)
-            local sLine = tLines[i]
-            local cPos = 0
-            while sLine:match(regex) do
-              local regFindS, regFindE = sLine:find(regex)
-              if cCount == count then
-                tLines[i] = tLines[i]:sub(1,cPos + regFindS-1) .. repl .. tLines[i]:sub(cPos + regFindE+1)
-                break
-              else
-                sLine = sLine:sub(regFindE+1)
-                cPos = regFindE
-              end
-              cCount = cCount + 1
-            end
-            if cCount == count then
-              break
-            end
-          else
-            tLines[i] = tLines[i]:gsub(regex, repl)
-          end
-        end
-        -- loop over command list
-        local x = string.len(comList)
-        for i=1, x do
-          local suffix = comList:sub(i, i)
-          if suffix == "n" then
-            local lastMatch = 0
-            for i = addr1, addr2 do
-              if cTlines[i]:match(regex) then
-                lastMatch = i
-              end
-            end
-            if lastMatch ~= 0 then
-              normCmds["n"](lastMatch, lastMatch)
-            end
-            elseif suffix == "p" then
-              local lastMatch = 0
-              for i=addr1, addr2 do
-                if cTlines[i]:match(regex) then
-                  lastMatch = i
-                end
-              end
-              if lastMatch ~= 0 then
-                normCmds["p"](lastMatch, lastMatch)
-              end
-            elseif suffix == "l" then
-              local lastMatch = 0
-              for i=addr1, addr2 do
-                if cTlines[i]:match(regex) then
-                  lastMatch = i
-                end
-              end
-              if lastMatch ~= 0 then
-                normCmds["l"](lastMatch, lastMatch)
-              end
-            end
-        	end
+	    if input:match("s%?.+%?.*%?.*") or input:match("s/.+/.*/.*") then
+	    	local regex = input:match("[/%?][^/%?]+[/%?]")
+	      if regex then
+	      	-- add % in front of character classes to prohibit regex confusion
+	        cleanRegex = regex:gsub("%^", "%%^"):gsub("%$", "%%$"):gsub("%%", "%%%%")
+	        cleanRegex = cleanRegex:gsub("%+", "%%+"):gsub("%-", "%%-"):gsub("%?", "%%?")
+	        cleanRegex = cleanRegex:gsub("%.", "%%."):gsub("%(", "%%("):gsub("%)", "%%)"):gsub("%[", "%%["):gsub("%]", "%%]"):gsub("%*", "%%*")
+					-- find regex
+	        local regStart, regEnd = input:find(cleanRegex)
+	        regStart = regStart + 1
+	        regEnd = regEnd - 1
+	        regex = input:sub(regStart, regEnd)
+	        input = input:sub(regEnd+1)
+					-- find repl
+	        local repl = input:match("[/%?][^/%?]*[/%?]")
+	        local replStart, replEnd = input:find(repl)
+	        replStart = replStart + 1
+	        replEnd = replEnd - 1
+	        if repl:len() > 2 then
+	          repl = input:sub(replStart, replEnd)
+	        else
+	          repl = ""
+	        end
+	        input = input:sub(replEnd+2)
+
+	        -- determine number of repetitions
+					local count = findCount(input)
+
+	        -- strip count from command list
+	        local cleanInput = input:gsub("[%dg]", "")
+					print(cleanInput)
+					if cleanInput:len() > 0 then
+						comList = cleanInput
+					end
+					-- save regex and repl for later
+					tEnv.lastS.regex = regex
+					tEnv.lastS.repl = repl
+	        -- replacing
+					doRepl(regex, repl, count)
+	        -- loop over command list
+					doSuffices(comList, regex)
+
     		end
+				-- repeat last replacement
+				else
+					local count = findCount(input)
+					local cleanInput = input:gsub("[%dg]", "")
+					if cleanInput:len() > 0 then
+						comList = cleanInput:sub(2)
+					end
+					if tEnv.lastS.regex == nil or tEnv.lastS.repl == nil then
+						ed_error("No previous substitution")
+						return
+					end
+					doRepl(tEnv.lastS.regex, tEnv.lastS.repl, count)
+					doSuffices(comList, tEnv.lastS.regex)
+				end
 		else
 			if normCmds[input] == nil then
 				ed_error("Unknown command")
