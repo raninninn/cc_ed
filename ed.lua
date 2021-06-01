@@ -186,8 +186,8 @@ local function splitAddr( input )
 			i = ii
 			j = jj
 		end
-		if i == nil or j == nil or mbSplitter < i or mbSplitter > j then 
-			if input:sub(mbSplitter-1, mbSplitter-1) ~= "'" or string.match(input:sub(mbSplitter, mbSplitter), "%u") then 
+		if i == nil or j == nil or mbSplitter < i or mbSplitter > j then
+			if input:sub(mbSplitter-1, mbSplitter-1) ~= "'" or string.match(input:sub(mbSplitter, mbSplitter), "%u") then
 				splitter = splitter + mbSplitter
 				break
 			else input = input:sub(mbSplitter+1)
@@ -350,7 +350,7 @@ local function findAddr( input )
 		local i = addrGmatch()
 		local operand = tEnv.y + tonumber(i)
 		i = addrGmatch()
-		while i do 
+		while i do
 			operand = operand + tonumber(i)
 			i = addrGmatch()
 		end
@@ -444,7 +444,7 @@ local normCmds = {
 						else tEnv.bPrint_error = false end end,
     ["="] = function() print(tEnv.y) end,
 	}
-	
+
 
 if tEnv.last_error ~= 0 then print(tEnv.last_error) end
 load(sPath)
@@ -478,6 +478,8 @@ local function main()
 			tEnv["y"] = tonumber(addr2)
 			print(tLines[tEnv["y"]])
 		elseif input == "" and addr1 == nil then
+            print(tEnv.y)
+            print(type(tEnv.y).." "..type(#tLines))
 			if tEnv.y < #tLines then
 				tEnv.y = tEnv.y + 1
 				print(tLines[tEnv.y])
@@ -585,13 +587,11 @@ local function main()
             end
             local regex = input:match("[/%?][^/%?]+[/%?]")
             if regex then
-                print(regex)
                 -- add % in front of character classes to prohibit regex confusion
                 cleanRegex = regex:gsub("%^", "%%^"):gsub("%$", "%%$"):gsub("%%", "%%%%")
                 cleanRegex = cleanRegex:gsub("%+", "%%+"):gsub("%-", "%%-"):gsub("%?", "%%?")
                 cleanRegex = cleanRegex:gsub("%.", "%%."):gsub("%(", "%%("):gsub("%)", "%%)"):gsub("%[", "%%["):gsub("%]", "%%]"):gsub("%*", "%%*")
 
-                print(cleanRegex)
 
                 local regStart, regEnd = input:find(cleanRegex)
                 regStart = regStart + 1
@@ -610,48 +610,85 @@ local function main()
                 end
                 input = input:sub(replEnd+2)
 
-                local suffix = input
-                if suffix == "" then
-                    suffix = "1"
+                -- determine number of repetitions
+                local count = input:match("%d+")
+                if input:match("g") then
+                    count = "all"
+                end
+                if count == nil then
+                    count = 1
                 end
 
-                if suffix == "g" then
-                    for i=addr1, addr2 do
-                        if tLines[i]:match(regex) then
-                            tLines[i] = tLines[i]:gsub(regex, repl)
-                            foundMatch = true
+                -- strip count from command list
+                local comList = nil
+                if countSt ~= nil then
+                    print(input:sub(1, countSt-1))
+                    comList = input:gsub("%d+", "")
+                    comList = input:gsub("g", "")
+                else
+                    comList = input
+                end
+
+                -- replacing
+                local cCount = 1
+								local cTlines = {table.unpack(tLines)}
+                for i = addr1, addr2 do
+                    if count ~= "all" then
+                        count = tonumber(count)
+                        local sLine = tLines[i]
+                        local cPos = 0
+                        while sLine:match(regex) do
+                            local regFindS, regFindE = sLine:find(regex)
+                            if cCount == count then
+                                tLines[i] = tLines[i]:sub(1,cPos + regFindS-1) .. repl .. tLines[i]:sub(cPos + regFindE+1)
+                                break
+                            else
+                               sLine = sLine:sub(regFindE+1)
+                               cPos = regFindE
+                            end
+                            cCount = cCount + 1
                         end
-                    end
-                elseif suffix == "n" then
-                    for i =addr1, addr2 do
-                        if tLines[i]:match(regex) then
-                            normCmds["n"](i, i)
+                        if cCount == count then
                             break
                         end
+                    else
+                        tLines[i] = tLines[i]:gsub(regex, repl)
                     end
-                elseif suffix == "p" then
-                    for i=addr1, addr2 do
-                        if tLines[i]:match(regex) then
-                            normCmds["p"](i, i)
-                            break
+                end
+                -- loop over command list
+                local x = string.len(comList)
+                for i=1, x do
+                    local suffix = comList:sub(i, i)
+                    if suffix == "n" then
+                        local lastMatch = 0
+                        for i = addr1, addr2 do
+                            if cTlines[i]:match(regex) then
+                                lastMatch = i
+                            end
                         end
-                    end
-                elseif suffix == "l" then
-                    for i=addr1, addr2 do
-                        if tLines[i]:match(regex) then
-                            normCmds["l"](i, i)
-                            break
+                        if lastMatch ~= 0 then
+                           normCmds["n"](lastMatch, lastMatch)
                         end
-                    end
-                elseif suffix:match("%d+") then
-                    local count = tonumber( suffix:match("%d+") )
-                    local n = 0
-                    for i=addr1, addr2 do
-                        if tLines[i]:match(regex) then
-                            tLines[i], n = tLines[i]:gsub(regex, repl, count)
+                    elseif suffix == "p" then
+                        local lastMatch = 0
+                        for i=addr1, addr2 do
+                            if cTlines[i]:match(regex) then
+                                lastMatch = i
+                            end
                         end
-                        count = count - n
-                        if count == 0 then break end
+                        if lastMatch ~= 0 then
+                            normCmds["p"](lastMatch, lastMatch)
+                        end
+                    elseif suffix == "l" then
+                        local lastMatch = 0
+                        for i=addr1, addr2 do
+                            if cTlines[i]:match(regex) then
+                                lastMatch = i
+                            end
+                        end
+                        if lastMatch ~= 0 then
+                            normCmds["l"](lastMatch, lastMatch)
+                        end
                     end
                 end
             end
@@ -665,8 +702,8 @@ local function main()
 		if addr2 ~= nil then
 			tEnv["y"] = addr2
 		end
-        -- update last_cmd
-        tEnv["last_cmd"] = input
+  -- update last_cmd
+  tEnv["last_cmd"] = input
 
 	-- insert mode
 	elseif tEnv.mode == "insert" then
