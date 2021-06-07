@@ -438,7 +438,8 @@ local normCmds = {
       end,
 	["d"] = function(addr1, addr2)
 				for i=addr1, addr2 do
-					table.remove(tLines, i) tEnv.unsaved = true
+					table.remove(tLines, addr1)
+					tEnv.unsaved = true
 				end
 				if #tLines == 0 then
 					tLines[1] = ""
