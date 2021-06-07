@@ -18,7 +18,8 @@ local tEnv = {
 	["bPrint_error"] = false,
   ["last_cmd"] = false,
   ["implicitAddr"] = false,
-	["lastS"] = {}
+	["lastS"] = {},
+	["lastShellCmd"] = {}
 }
 -- Bookmarks
 local tBookms = {}
@@ -178,9 +179,9 @@ end
 local function splitAddr( input )
 	local splitter = 0
 	local input = input.."a"
-	-- find first occurance of a letter or = that isn't part of regex, if it is lower case and has `'` before it, go to next occurance
-	while input:find("[%a=]") do
-		local mbSplitter = input:find("[%a=]")
+	-- find first occurance of a letter or = or ! that isn't part of regex, if it is lower case and has `'` before it, go to next occurance
+	while input:find("[%a=!]") do
+		local mbSplitter = input:find("[%a=!]")
 		local i,j = input:find("%b//")
 		local ii, jj = input:find("%b??")
 		if i == nil or i ~= nil and ii ~= nil and i < ii then
@@ -331,7 +332,7 @@ local function findAddr( input )
 	-- Replace all "+%D" with "+1"
 	while addr:match("[%+%-]%D") do
 		-- Insert space between "+" and "%D"
-		local i,j = addr:find("[%+%-][%a%p]")
+		local i,j = addr:find("[%+%-][%D]")
 		addr = addr:sub(1,i) .. " " .. addr:sub(j)
 		-- replace "%s" with "1"
 		addr = addr:gsub("%s", "1")
@@ -497,6 +498,26 @@ local function main()
 			else
 				ed_error("Invalid address")
 			end
+		elseif input:sub(1,1) == "!" then
+			input = input:sub(2)
+			-- replace all ! with last shell command
+			if input:match("!") then
+				input = input:gsub("!", tEnv.lastShellCmd)
+				print(input)
+			end
+			-- replace all unescaped % with default file name
+			while input:match("%%") do
+				local start = input:find("%%")
+				if input:sub(start-1, start-1) ~= "\\" then
+					input = input:sub(0, start-1) .. sPath .. input:sub(start+1)
+					print(input)
+				end
+			end
+			-- execute
+			shell.run(input)
+			-- set executed shell command as last shell command
+			tEnv.lastShellCmd = input
+			print("!")
 		elseif input:match("w.-") then
             if input:sub(1,1) ~= "w" then
                 ed_error("Unknown command")
