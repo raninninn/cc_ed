@@ -457,18 +457,7 @@ local normCmds = {
 					tEnv.bPrint_error = true print(tEnv.last_error)
 				else tEnv.bPrint_error = false end
 			end,
-	["h"] = function()
-				print(tEnv.last_error)
-			end,
 	["="] = function() print(tEnv.y) end,
-	["j"] = function(addr1, addr2)
-				local addr1, addr2 = tonumber(addr1), tonumber(addr2)
-				if addr1 ~= addr2 then
-					tLines[addr1] = tLines[ addr1 ]..tLines[ addr2 ]
-					table.remove(tLines, addr2)
-					tEnv.y = addr1
-				end
-			end,
 }
 
 
