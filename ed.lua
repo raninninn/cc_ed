@@ -457,6 +457,9 @@ local normCmds = {
 					tEnv.bPrint_error = true print(tEnv.last_error)
 				else tEnv.bPrint_error = false end
 			end,
+	["h"] = function()
+				print(tEnv.last_error)
+			end,
 	["="] = function() print(tEnv.y) end,
 }
 
