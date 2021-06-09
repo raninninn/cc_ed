@@ -343,6 +343,9 @@ local function findAddr( input )
 	if addr:sub( addr:len() ) == "-" then
 		addr = addr.."1"
 	end
+	if addr:sub(1,1):match("[%+%-]") then
+		addr = tEnv.y..addr
+	end
 	-- parse all mathematical equations into one address
 	if addr:match("[%-%+].") then
 		local addrGmatch = addr:gmatch("[%+%-]%d+")
@@ -466,13 +469,12 @@ local function main()
 	if tEnv.mode == "none" then
 		tEnv.mode = "normal"
 	end
-
 	local input = read()
 	if tEnv.mode == "normal" then
 		local addr1, addr2, splitter = findAddr(input)
 		-- Throw error if addresses are out of bounds
 		if addr1 ~= nil then
-			if addr1 == 0 or tonumber(addr2) > #tLines then
+			if tonumber(addr1) == 0 or tonumber(addr2) > #tLines then
 				ed_error("Invalid address")
 				return
 			end
@@ -622,8 +624,6 @@ local function main()
 			local cTlines = {table.unpack(tLines)}
 
 			local function doSuffices(_comList, _regex)
-				print(_comList)
-				print(_regex)
 				local comListLen = string.len(_comList)
 				for i=1, comListLen do
 					local suffix = _comList:sub(i, i)
@@ -730,7 +730,6 @@ local function main()
 
 	        -- strip count from command list
 	        local cleanInput = input:gsub("[%dg]", "")
-					print(cleanInput)
 					if cleanInput:len() > 0 then
 						comList = cleanInput
 					end
