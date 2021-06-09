@@ -623,8 +623,6 @@ local function main()
 			local cTlines = {table.unpack(tLines)}
 
 			local function doSuffices(_comList, _regex)
-				print(_comList)
-				print(_regex)
 				local comListLen = string.len(_comList)
 				for i=1, comListLen do
 					local suffix = _comList:sub(i, i)
@@ -731,7 +729,6 @@ local function main()
 
 	        -- strip count from command list
 	        local cleanInput = input:gsub("[%dg]", "")
-					print(cleanInput)
 					if cleanInput:len() > 0 then
 						comList = cleanInput
 					end
