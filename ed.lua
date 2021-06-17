@@ -19,7 +19,8 @@ local tEnv = {
   ["last_cmd"] = false,
   ["implicitAddr"] = false,
 	["lastS"] = {},
-	["lastShellCmd"] = {}
+	["lastShellCmd"] = {},
+	["cutBuffer"] = {},
 }
 -- Bookmarks
 local tBookms = {}
@@ -441,9 +442,13 @@ local normCmds = {
         else tEnv.bRunning = false end
       end,
 	["d"] = function(addr1, addr2)
+				tEnv.cutBuffer = {}
+				local ii = 1
 				for i=addr1, addr2 do
+					tEnv.cutBuffer[ii] = tLines[addr1]
 					table.remove(tLines, addr1)
 					tEnv.unsaved = true
+					ii = ii + 1
 				end
 				if #tLines == 0 then
 					tLines[1] = ""
@@ -467,6 +472,20 @@ local normCmds = {
 					tLines[addr1] = tLines[ addr1 ]..tLines[ addr2 ]
 					table.remove(tLines, addr2)
 					tEnv.y = addr1
+				end
+			end,
+	["y"] = function(addr1, addr2)
+				local addr1, addr2 = tonumber(addr1), tonumber(addr2)
+				tEnv.cutBuffer = {}
+				for i = addr1, addr2 do
+					table.insert(tEnv.cutBuffer, tLines[i])
+				end
+			end,
+	["x"] = function(addr1)
+				local addr1 = tonumber(addr1)
+				for i = 1, #tEnv.cutBuffer do
+					table.insert(tLines, addr1, tEnv.cutBuffer[i])
+					addr1 = addr1 + 1
 				end
 			end,
 }
