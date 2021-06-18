@@ -19,7 +19,8 @@ local tEnv = {
   ["last_cmd"] = false,
   ["implicitAddr"] = false,
 	["lastS"] = {},
-	["lastShellCmd"] = {}
+	["lastShellCmd"] = {},
+	["cutBuffer"] = {},
 }
 -- Bookmarks
 local tBookms = {}
@@ -326,7 +327,7 @@ local function findAddr( input )
 			addr = addr:gsub(sMark, tBookms[mark])
 		else
 			tEnv.mode = "none"
-			return 0, tEnv.y
+			return -2, tEnv.y
 		end
 	end
 	-- Replace all "+%D" with "+1"
@@ -408,7 +409,8 @@ term.setBackgroundColour(bgColour)
 term.clear()
 term.setCursorPos(tEnv.x, tEnv.y)
 term.setCursorBlink(true)
-local normCmds = {
+local normCmds = {}
+normCmds = {
 	["n"] = function(addr1, addr2)
 				for i=addr1, addr2 do
 					if tEnv.syntaxHL == true then
@@ -441,9 +443,13 @@ local normCmds = {
         else tEnv.bRunning = false end
       end,
 	["d"] = function(addr1, addr2)
+				tEnv.cutBuffer = {}
+				ii = 1
 				for i=addr1, addr2 do
+					tEnv.cutBuffer[ii] = tLines[addr1]
 					table.remove(tLines, addr1)
 					tEnv.unsaved = true
+					ii = ii + 1
 				end
 				if #tLines == 0 then
 					tLines[1] = ""
@@ -451,13 +457,38 @@ local normCmds = {
 			end,
 	["i"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2 end,
 	["a"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2+1 end,
-	["c"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2 tEnv.change = true end,
+	["c"] = function(addr1, addr2)
+				tEnv.mode = "insert"
+				tEnv.write_line = addr1
+				tEnv.unsaved = true
+				normCmds.d(addr1, addr2)
+			end,
 	["H"] = function()
 				if tEnv.bPrint_error == false then
 					tEnv.bPrint_error = true print(tEnv.last_error)
 				else tEnv.bPrint_error = false end
 			end,
 	["="] = function() print(tEnv.y) end,
+	["j"] = function(addr1, addr2)
+				if addr1 ~= addr2 then
+					tEnv.cutBuffer = {tLines[addr1], tLines[addr2]}
+					tLines[addr1] = tLines[ addr1 ]..tLines[ addr2 ]
+					table.remove(tLines, addr2)
+					tEnv.y = addr1
+				end
+			end,
+	["y"] = function(addr1, addr2)
+				tEnv.cutBuffer = {}
+				for i = addr1, addr2 do
+					table.insert(tEnv.cutBuffer, tLines[i])
+				end
+			end,
+	["x"] = function(addr1)
+				for i = 1, #tEnv.cutBuffer do
+					table.insert(tLines, addr1+1, tEnv.cutBuffer[i])
+					addr1 = addr1 + 1
+				end
+			end,
 }
 
 
@@ -474,7 +505,7 @@ local function main()
 		local addr1, addr2, splitter = findAddr(input)
 		-- Throw error if addresses are out of bounds
 		if addr1 ~= nil then
-			if tonumber(addr1) == 0 or tonumber(addr2) > #tLines then
+			if tonumber(addr1) == 0 and input:sub(splitter) ~= "x" or tonumber(addr2) > #tLines then
 				ed_error("Invalid address")
 				return
 			end
@@ -760,7 +791,7 @@ local function main()
 			if normCmds[input] == nil then
 				ed_error("Unknown command")
 			else
-				normCmds[input](addr1, addr2)
+				normCmds[input](tonumber(addr1), tonumber(addr2))
 			end
 		end
 		if addr2 ~= nil then
