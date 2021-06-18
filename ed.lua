@@ -645,12 +645,7 @@ local function main()
 			else
 				tBookms[suffix] = addr2
 			end
-		elseif input:match("s") then
-			if input:sub(1,1) ~= "s" then
-				ed_error("Unknown command")
-				return
-			end
-
+		elseif input:sub(1,1) == "s" then
 			local comList = ""
 			local cTlines = {table.unpack(tLines)}
 
@@ -787,6 +782,64 @@ local function main()
 					doRepl(tEnv.lastS.regex, tEnv.lastS.repl, count)
 					doSuffices(comList, tEnv.lastS.regex)
 				end
+		elseif input:sub(1,1) == "t" then
+			local destAddr = tEnv.y
+			if input:len() > 1 then
+				destAddr = tonumber( input:sub(2) )
+			end
+			if destAddr == nil then
+				ed_error("Invalid command suffix")
+				return
+			end
+			local transferBuf = {}
+			local ii = 1
+			-- copy line contents to transfer buffer
+			for i = addr1, addr2 do
+				transferBuf[ii] = tLines[i]
+				ii = ii + 1
+			end
+			-- paste contents of transfer buffer to file
+			for i = 1, #transferBuf do
+				table.insert(tLines, destAddr + 1, transferBuf[i])
+				destAddr = destAddr + 1
+			end
+		elseif input:sub(1,1) == "m" then
+			local addr1, addr2 = tonumber(addr1), tonumber(addr2)
+			local destAddr = tEnv.y
+			if input:len() > 1 then
+				destAddr = tonumber( input:sub(2) )
+			end
+			if destAddr == nil then
+				ed_error("Invalid command suffix")
+				return
+			end
+			-- error if destination address is in addressed range
+			if destAddr > addr1 and destAddr < addr2 then
+				ed_error("Invalid destination")
+				return
+			end
+			local transferBuf = {}
+			local ii = 1
+			-- copy lines contents to transfer buffer
+			for i = addr1, addr2 do
+				transferBuf[ii] = tLines[i]
+				ii = ii + 1
+			end
+			-- paste contents of transfer buffer to file
+			local destAddrCp = destAddr
+			for i = 1, #transferBuf do
+				table.insert(tLines, destAddr + 1, transferBuf[i])
+				destAddr = destAddr + 1
+			end
+			-- delete old lines
+			--  find new address of old lines
+			local offset = 0
+			if tonumber(addr2) > destAddrCp then
+				offset = addr2 - addr1
+			end
+			for i = addr1+offset, addr2+offset do
+				table.remove(tLines, addr1+offset)
+			end
 		else
 			if normCmds[input] == nil then
 				ed_error("Unknown command")
