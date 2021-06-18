@@ -409,7 +409,8 @@ term.setBackgroundColour(bgColour)
 term.clear()
 term.setCursorPos(tEnv.x, tEnv.y)
 term.setCursorBlink(true)
-local normCmds = {
+local normCmds = {}
+normCmds = {
 	["n"] = function(addr1, addr2)
 				for i=addr1, addr2 do
 					if tEnv.syntaxHL == true then
@@ -443,7 +444,7 @@ local normCmds = {
       end,
 	["d"] = function(addr1, addr2)
 				tEnv.cutBuffer = {}
-				local ii = 1
+				ii = 1
 				for i=addr1, addr2 do
 					tEnv.cutBuffer[ii] = tLines[addr1]
 					table.remove(tLines, addr1)
@@ -456,7 +457,12 @@ local normCmds = {
 			end,
 	["i"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2 end,
 	["a"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2+1 end,
-	["c"] = function(addr1, addr2) tEnv.mode = "insert" tEnv.write_line = addr2 tEnv.change = true end,
+	["c"] = function(addr1, addr2)
+				tEnv.mode = "insert"
+				tEnv.write_line = addr1
+				tEnv.unsaved = true
+				normCmds.d(addr1, addr2)
+			end,
 	["H"] = function()
 				if tEnv.bPrint_error == false then
 					tEnv.bPrint_error = true print(tEnv.last_error)
@@ -467,7 +473,6 @@ local normCmds = {
 			end,
 	["="] = function() print(tEnv.y) end,
 	["j"] = function(addr1, addr2)
-				local addr1, addr2 = tonumber(addr1), tonumber(addr2)
 				if addr1 ~= addr2 then
 					tLines[addr1] = tLines[ addr1 ]..tLines[ addr2 ]
 					table.remove(tLines, addr2)
@@ -475,14 +480,12 @@ local normCmds = {
 				end
 			end,
 	["y"] = function(addr1, addr2)
-				local addr1, addr2 = tonumber(addr1), tonumber(addr2)
 				tEnv.cutBuffer = {}
 				for i = addr1, addr2 do
 					table.insert(tEnv.cutBuffer, tLines[i])
 				end
 			end,
 	["x"] = function(addr1)
-				local addr1 = tonumber(addr1)
 				for i = 1, #tEnv.cutBuffer do
 					table.insert(tLines, addr1, tEnv.cutBuffer[i])
 					addr1 = addr1 + 1
@@ -791,7 +794,7 @@ local function main()
 			if normCmds[input] == nil then
 				ed_error("Unknown command")
 			else
-				normCmds[input](addr1, addr2)
+				normCmds[input](tonumber(addr1), tonumber(addr2))
 			end
 		end
 		if addr2 ~= nil then
