@@ -327,7 +327,7 @@ local function findAddr( input )
 			addr = addr:gsub(sMark, tBookms[mark])
 		else
 			tEnv.mode = "none"
-			return 0, tEnv.y
+			return -2, tEnv.y
 		end
 	end
 	-- Replace all "+%D" with "+1"
@@ -474,6 +474,7 @@ normCmds = {
 	["="] = function() print(tEnv.y) end,
 	["j"] = function(addr1, addr2)
 				if addr1 ~= addr2 then
+					tEnv.cutBuffer = {tLines[addr1], tLines[addr2]}
 					tLines[addr1] = tLines[ addr1 ]..tLines[ addr2 ]
 					table.remove(tLines, addr2)
 					tEnv.y = addr1
@@ -487,7 +488,7 @@ normCmds = {
 			end,
 	["x"] = function(addr1)
 				for i = 1, #tEnv.cutBuffer do
-					table.insert(tLines, addr1, tEnv.cutBuffer[i])
+					table.insert(tLines, addr1+1, tEnv.cutBuffer[i])
 					addr1 = addr1 + 1
 				end
 			end,
@@ -507,7 +508,7 @@ local function main()
 		local addr1, addr2, splitter = findAddr(input)
 		-- Throw error if addresses are out of bounds
 		if addr1 ~= nil then
-			if tonumber(addr1) == 0 or tonumber(addr2) > #tLines then
+			if tonumber(addr1) == 0 and input:sub(splitter) ~= "x" or tonumber(addr2) > #tLines then
 				ed_error("Invalid address")
 				return
 			end
