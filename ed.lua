@@ -468,9 +468,6 @@ normCmds = {
 					tEnv.bPrint_error = true print(tEnv.last_error)
 				else tEnv.bPrint_error = false end
 			end,
-	["h"] = function()
-				print(tEnv.last_error)
-			end,
 	["="] = function() print(tEnv.y) end,
 	["j"] = function(addr1, addr2)
 				if addr1 ~= addr2 then
@@ -542,9 +539,8 @@ local function main()
 				print(input)
 			end
 			-- replace all unescaped % with default file name
-			local start = 0
-			while input:find("%%", start+1) do
-				start = input:find("%%", start+1)
+			while input:match("%%") do
+				local start = input:find("%%")
 				if input:sub(start-1, start-1) ~= "\\" then
 					input = input:sub(0, start-1) .. sPath .. input:sub(start+1)
 					print(input)
