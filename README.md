@@ -7,6 +7,8 @@ _cc_ed uses [Lua patterns](https://www.lua.org/pil/20.2.html) for regex._
 - All line addressing modes
 - n and p
 - Appending `a`, inserting `i`, changing `c` and deleting `d` lines
-- `s` (although it needs some polishing)
+- `s`
+- Moving `m` and transfering `t` lines
+- Yanking `y` and pasting `x`
 - Toggling error messages with `H`
 - Turning syntax highlighting on and off with `set syntaxHL = true/false`
