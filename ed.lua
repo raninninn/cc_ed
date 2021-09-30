@@ -73,9 +73,10 @@ local function load(_sPath)
       sLine = file:read()
     end
     file:close()
-	else
-		tEnv.last_error = "Cannot read input file"
-	end
+	tEnv.y = #tLines
+  else
+	tEnv.last_error = "Cannot read input file"
+  end
 
   if #tLines == 0 then
     table.insert(tLines, "")
@@ -468,6 +469,9 @@ normCmds = {
 					tEnv.bPrint_error = true print(tEnv.last_error)
 				else tEnv.bPrint_error = false end
 			end,
+	["h"] = function()
+				print(tEnv.last_error)
+			end,
 	["="] = function() print(tEnv.y) end,
 	["j"] = function(addr1, addr2)
 				if addr1 ~= addr2 then
@@ -521,13 +525,11 @@ local function main()
 		-- Normal mode commands
 		if input == "" and addr2 then
 			tEnv["y"] = tonumber(addr2)
-			print(tLines[tEnv["y"]])
+			writeHighlighted(tLines[tEnv["y"]]) write("\n")
 		elseif input == "" and addr1 == nil then
-      print(tEnv.y)
-      print(type(tEnv.y).." "..type(#tLines))
-			if tEnv.y < #tLines then
+			if tonumber(tEnv.y) < #tLines then
 				tEnv.y = tEnv.y + 1
-				print(tLines[tEnv.y])
+				writeHighlighted(tLines[tEnv.y]) write("\n")
 			else
 				ed_error("Invalid address")
 			end
@@ -635,10 +637,6 @@ local function main()
 				ed_error("Not enough arguments")
 			end
 		elseif input:match("k%l?") then
-      if not input:sub(1,2):match("'%l") then
-        ed_error("Unknown command")
-        return
-      end
 			local suffix = input:sub(2)
 			if string.len(input) ~= 2 then
 				ed_error("Invalid command suffix")
