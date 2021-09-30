@@ -6,7 +6,7 @@
 
 -- Environment
 local tEnv = {
-	["y"] = 0,
+	["y"] = 1,
 	["x"] = 1,
 	["bRunning"] = true,
 	["mode"] = "normal",
@@ -73,9 +73,10 @@ local function load(_sPath)
       sLine = file:read()
     end
     file:close()
-	else
-		tEnv.last_error = "Cannot read input file"
-	end
+	tEnv.y = #tLines
+  else
+	tEnv.last_error = "Cannot read input file"
+  end
 
   if #tLines == 0 then
     table.insert(tLines, "")
