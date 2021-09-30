@@ -525,11 +525,15 @@ local function main()
 		-- Normal mode commands
 		if input == "" and addr2 then
 			tEnv["y"] = tonumber(addr2)
-			writeHighlighted(tLines[tEnv["y"]]) write("\n")
+			if tEnv.syntaxHL == true then writeHighlighted(tLines[tEnv["y"]]) write("\n")
+			else print(tLines[tEnv.y])
+			end
 		elseif input == "" and addr1 == nil then
 			if tonumber(tEnv.y) < #tLines then
 				tEnv.y = tEnv.y + 1
-				writeHighlighted(tLines[tEnv.y]) write("\n")
+				if tEnv.syntaxHL == true then writeHighlighted(tLines[tEnv.y]) write("\n")
+				else print(tLines[tEnv.y])
+				end
 			else
 				ed_error("Invalid address")
 			end
